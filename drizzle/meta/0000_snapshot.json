@@ -1,0 +1,163 @@
+{
+  "id": "08a34112-e656-43e2-955e-253d176a1a08",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.deteksi": {
+      "name": "deteksi",
+      "schema": "",
+      "columns": {
+        "id_deteksi": {
+          "name": "id_deteksi",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "id_laporan": {
+          "name": "id_laporan",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kelas": {
+          "name": "kelas",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "confidence_score": {
+          "name": "confidence_score",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bbox_x": {
+          "name": "bbox_x",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bbox_y": {
+          "name": "bbox_y",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bbox_width": {
+          "name": "bbox_width",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bbox_height": {
+          "name": "bbox_height",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "deteksi_id_laporan_laporan_id_laporan_fk": {
+          "name": "deteksi_id_laporan_laporan_id_laporan_fk",
+          "tableFrom": "deteksi",
+          "tableTo": "laporan",
+          "columnsFrom": [
+            "id_laporan"
+          ],
+          "columnsTo": [
+            "id_laporan"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.laporan": {
+      "name": "laporan",
+      "schema": "",
+      "columns": {
+        "id_laporan": {
+          "name": "id_laporan",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tanggal": {
+          "name": "tanggal",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "latitude": {
+          "name": "latitude",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "longitude": {
+          "name": "longitude",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "alamat": {
+          "name": "alamat",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "gambar": {
+          "name": "gambar",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rds_score": {
+          "name": "rds_score",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

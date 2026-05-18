@@ -1,0 +1,372 @@
+import React, { useState, useCallback } from 'react';
+import { useDropzone } from 'react-dropzone';
+import { Upload, X, Loader2, CheckCircle2, ShieldAlert, Mail, MapPin, ArrowRight, BrainCircuit } from './icons';
+import { motion, AnimatePresence } from 'motion/react';
+import { calculateRDS, cn, compressImage } from '../lib/utils';
+import { Detection } from '../types';
+
+interface ReportFormProps {
+  onSuccess?: () => void;
+  onNavigateMap?: () => void;
+}
+
+/* ── Step indicator ────── */
+function StepIndicator({ step }: { step: number }) {
+  const steps = ['Upload Foto', 'Isi Data', 'Kirim'];
+  return (
+    <div className="flex items-center gap-2 mb-8">
+      {steps.map((s, i) => (
+        <React.Fragment key={i}>
+          <div className="flex items-center gap-2">
+            <div
+              className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold transition-all duration-400"
+              style={{
+                background: i <= step ? 'var(--color-brand-blue)' : 'var(--color-surface)',
+                color: i <= step ? '#fff' : 'var(--color-on-surface-muted)',
+                border: `1.5px solid ${i <= step ? 'var(--color-brand-blue)' : 'var(--color-border)'}`,
+              }}
+            >
+              {i + 1}
+            </div>
+            <span className="text-[11px] font-semibold hidden sm:block" style={{ color: i <= step ? 'var(--color-brand-blue)' : 'var(--color-on-surface-muted)' }}>
+              {s}
+            </span>
+          </div>
+          {i < 2 && <div className="flex-1 h-px" style={{ background: i < step ? 'var(--color-brand-blue)' : 'var(--color-border)' }} />}
+        </React.Fragment>
+      ))}
+    </div>
+  );
+}
+
+export default function ReportForm({ onSuccess, onNavigateMap }: ReportFormProps) {
+  const [files, setFiles] = useState<File[]>([]);
+  const [previews, setPreviews] = useState<string[]>([]);
+  const [email, setEmail] = useState('');
+  const [deskripsi, setDeskripsi] = useState('');
+  const [kodeUnik, setKodeUnik] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const currentStep = files.length > 0 ? (email ? 2 : 1) : 0;
+
+  const isWithinKemang = (lat: number, lng: number) => {
+    return lat >= -6.5400 && lat <= -6.4850 && lng >= 106.7200 && lng <= 106.7800;
+  };
+
+  const onDrop = useCallback((acceptedFiles: File[]) => {
+    if (acceptedFiles.length > 0) {
+      setFiles(prev => {
+        const combined = [...prev, ...acceptedFiles].slice(0, 3);
+        setPreviews(combined.map(f => URL.createObjectURL(f)));
+        return combined;
+      });
+      setKodeUnik(null);
+      setErrorMsg(null);
+      setStatus('idle');
+    }
+  }, []);
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: { 'image/*': [] },
+    multiple: true
+  } as any);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (files.length === 0 || !email) return;
+
+    setLoading(true);
+    setStatus('saving');
+    setErrorMsg(null);
+
+    try {
+      const imagesPayload = await Promise.all(files.map(async (f) => {
+        return await compressImage(f, 800, 800, 0.6);
+      }));
+
+      let latitude = -6.512500;
+      let longitude = 106.755280; 
+      
+      try {
+        const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: false,
+            timeout: 3000,
+            maximumAge: Infinity
+          });
+        });
+        latitude = pos.coords.latitude;
+        longitude = pos.coords.longitude;
+      } catch (geoError) {
+        console.warn("Geolocation failed. Menggunakan lokasi default Kemang.", geoError);
+      }
+
+      if (!isWithinKemang(latitude, longitude)) {
+        throw new Error("Laporan ditolak. Laporan hanya dapat dibuat untuk wilayah Kecamatan Kemang, Kabupaten Bogor.");
+      }
+
+      const response = await fetch('/api/reports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, latitude, longitude, images: imagesPayload, deskripsi })
+      });
+
+      if (!response.ok) throw new Error('API Error');
+      
+      const data = await response.json();
+      setKodeUnik(data.report.kodeUnik);
+      setStatus('success');
+      if (onSuccess) onSuccess();
+    } catch (error: any) {
+      console.error(error);
+      setErrorMsg(error.message || 'Terjadi kesalahan saat menyimpan laporan.');
+      setStatus('error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="max-w-[1080px] mx-auto py-8 px-4">
+      <motion.div 
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="space-y-6"
+      >
+        {/* Header */}
+        <div className="space-y-1">
+          <h2 className="display-serif text-4xl md:text-5xl">
+            Laporkan kerusakan,<br /><em style={{ fontWeight: 300, fontStyle: 'italic', color: 'var(--color-brand-blue)' }}>bantu wilayahmu.</em>
+          </h2>
+          <p className="text-sm" style={{ color: 'var(--color-on-surface-muted)' }}>Foto dianalisis otomatis oleh AI. Lokasi dari GPS perangkat.</p>
+        </div>
+
+        {/* Step indicator */}
+        {status !== 'success' && <StepIndicator step={currentStep} />}
+
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Left column */}
+          <div className="card p-7 space-y-5">
+            {/* Dropzone */}
+            <div>
+              <div className="flex justify-between items-center mb-2">
+                <label className="text-xs font-semibold">Foto kerusakan</label>
+                <span className="text-xs font-medium" style={{ color: 'var(--color-on-surface-muted)' }}>{files.length}/3</span>
+              </div>
+              <div 
+                {...getRootProps()} 
+                className={cn(
+                  "aspect-[3/2] rounded-2xl border-[1.5px] flex flex-col items-center justify-center transition-all duration-200 cursor-pointer overflow-hidden relative",
+                  isDragActive ? "border-[var(--color-brand-blue)]" : "",
+                  previews.length > 0 ? "border-solid" : "border-dashed"
+                )}
+                style={{
+                  borderColor: isDragActive ? 'var(--color-brand-blue)' : 'var(--color-border)',
+                  background: isDragActive ? 'var(--color-brand-blue-50)' : 'var(--color-surface-cream)'
+                }}
+              >
+                <input {...getInputProps()} />
+                {previews.length > 0 ? (
+                  <div className="w-full h-full relative p-2 grid grid-cols-2 gap-2" style={{ background: 'var(--color-surface-cream)' }} onClick={(e) => { if (previews.length >= 3) e.stopPropagation(); }}>
+                    {previews.map((p, i) => (
+                      <motion.div
+                        key={i}
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: i * 0.08 }}
+                        className={`relative rounded-xl overflow-hidden group/img ${previews.length === 1 ? 'col-span-2 row-span-2' : 'h-32'}`}
+                      >
+                        <img src={p} alt="Preview" className="w-full h-full object-cover" />
+                        <button 
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setFiles(prev => prev.filter((_, idx) => idx !== i));
+                            setPreviews(prev => prev.filter((_, idx) => idx !== i));
+                          }}
+                          className="absolute top-2 right-2 p-1.5 rounded-full text-white transition-opacity z-10 opacity-0 group-hover/img:opacity-100"
+                          style={{ background: 'rgba(15,23,42,0.6)' }}
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </motion.div>
+                    ))}
+                    {previews.length < 3 && (
+                      <div className="rounded-xl border-[1.5px] border-dashed flex flex-col items-center justify-center h-32 cursor-pointer" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}>
+                        <Upload className="w-4 h-4 mb-1" />
+                        <span className="text-[10px] font-semibold" style={{ color: 'var(--color-on-surface-muted)' }}>Tambah</span>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center">
+                    <div className="w-12 h-12 rounded-full flex items-center justify-center mb-3" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
+                      <Upload className="w-5 h-5" />
+                    </div>
+                    <span className="display-serif text-lg">Tarik foto ke sini</span>
+                    <span className="text-xs mt-1" style={{ color: 'var(--color-on-surface-muted)' }}>atau klik untuk pilih dari perangkat</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Email */}
+            <div>
+              <label className="text-xs font-semibold mb-2 block">Email pelapor</label>
+              <div className="relative">
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4" />
+                <input 
+                  type="email"
+                  required
+                  placeholder="nama@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="input-base pl-12"
+                />
+              </div>
+            </div>
+
+            {/* Description */}
+            <div>
+              <div className="flex justify-between items-center mb-2">
+                <label className="text-xs font-semibold">Deskripsi</label>
+                <span className="text-xs font-medium" style={{ color: 'var(--color-on-surface-muted)' }}>Opsional</span>
+              </div>
+              <textarea 
+                placeholder="Contoh: jalan berlubang cukup dalam, sering tergenang air ketika hujan."
+                value={deskripsi}
+                onChange={(e) => setDeskripsi(e.target.value)}
+                rows={3}
+                className="input-base resize-none"
+              />
+            </div>
+
+            {/* GPS hint */}
+            <div className="flex gap-3 p-3.5 rounded-2xl" style={{ background: 'var(--color-brand-yellow-50)', border: '1px solid var(--color-brand-yellow-100)' }}>
+              <MapPin className="w-4 h-4 shrink-0 mt-0.5" />
+              <p className="text-xs font-medium leading-relaxed">
+                <strong style={{ color: 'var(--color-brand-yellow-700)' }}>Lokasi otomatis.</strong>{' '}
+                <span style={{ color: 'var(--color-on-surface-muted)' }}>Koordinat GPS diambil saat pengiriman.</span>
+              </p>
+            </div>
+
+            {/* Submit */}
+            <button
+              disabled={loading || files.length === 0 || !email}
+              className="btn-primary w-full py-4 text-base group"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Menyimpan...
+                </>
+              ) : (
+                <>
+                  Kirim Laporan
+                  <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-0.5" />
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Right column */}
+          <div className="space-y-4">
+            <AnimatePresence mode="wait">
+              {status === 'success' ? (
+                <motion.div 
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="h-full flex flex-col"
+                >
+                  <div className="card overflow-hidden">
+                    <div className="p-7 text-center" style={{ background: 'var(--color-brand-yellow-50)', borderBottom: '1px solid var(--color-brand-yellow-100)' }}>
+                      <div className="w-12 h-12 rounded-full mx-auto mb-4 flex items-center justify-center" style={{ background: 'var(--color-brand-blue)', color: 'var(--color-brand-yellow)' }}>
+                        <CheckCircle2 className="w-6 h-6" />
+                      </div>
+                      <span className="eyebrow block mb-2" style={{ color: 'var(--color-brand-yellow-700)' }}>Laporan Terkirim</span>
+                      <p className="display-serif mt-1" style={{ fontSize: '44px', letterSpacing: '-0.03em', color: 'var(--color-brand-blue)', lineHeight: 1 }}>{kodeUnik}</p>
+                      <p className="text-sm mt-3" style={{ color: 'var(--color-on-surface-muted)' }}>Simpan kode ini untuk memantau status.</p>
+                    </div>
+                    <div className="p-6 space-y-4">
+                      <div className="flex gap-3">
+                        <div className="flex-1 p-3 rounded-xl" style={{ background: 'var(--color-surface-cream)', border: '1px solid var(--color-border)' }}>
+                          <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--color-on-surface-muted)' }}>Status</span>
+                          <p className="text-sm font-semibold mt-1">Pending</p>
+                        </div>
+                        <div className="flex-1 p-3 rounded-xl" style={{ background: 'var(--color-surface-cream)', border: '1px solid var(--color-border)' }}>
+                          <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--color-on-surface-muted)' }}>RDS</span>
+                          <p className="text-sm font-semibold mt-1">Menunggu AI</p>
+                        </div>
+                      </div>
+                      <div className="flex gap-3">
+                        <button 
+                          type="button"
+                          onClick={() => { setStatus('idle'); setFiles([]); setPreviews([]); setKodeUnik(null); setDeskripsi(''); }}
+                          className="btn-secondary flex-1"
+                        >
+                          Lapor Lagi
+                        </button>
+                        {onNavigateMap && (
+                          <button type="button" onClick={onNavigateMap} className="btn-primary flex-1 group">
+                            Lihat Peta
+                            <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-0.5" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              ) : status === 'error' ? (
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="card p-8 flex flex-col items-center text-center space-y-4"
+                >
+                  <div className="w-14 h-14 rounded-full flex items-center justify-center" style={{ background: '#fef2f2', color: '#ef4444' }}>
+                    <ShieldAlert className="w-7 h-7" />
+                  </div>
+                  <h3 className="display-serif text-xl">Gagal Mengirim</h3>
+                  <p className="text-sm" style={{ color: 'var(--color-on-surface-muted)' }}>{errorMsg}</p>
+                  <button onClick={() => { setStatus('idle'); setErrorMsg(null); }} className="btn-secondary">Coba Lagi</button>
+                </motion.div>
+              ) : (
+                <>
+                  {/* Ticket preview */}
+                  <div className="card p-7">
+                    <div className="p-5 rounded-2xl" style={{ background: 'var(--color-brand-yellow-50)', border: '1px solid var(--color-brand-yellow-100)' }}>
+                      <span className="eyebrow" style={{ color: 'var(--color-brand-yellow-700)' }}>Kode tiket akan muncul di sini</span>
+                      <p className="display-serif mt-2" style={{ fontSize: '44px', letterSpacing: '-0.03em', color: 'var(--color-brand-blue)', lineHeight: 1, opacity: 0.15 }}>LAP-————</p>
+                      <p className="text-sm mt-2" style={{ color: 'var(--color-on-surface-muted)' }}>Simpan kode ini untuk memantau status.</p>
+                    </div>
+                  </div>
+
+                  {/* What happens next */}
+                  <div className="card p-7">
+                    <p className="display-serif text-base mb-4" style={{ fontStyle: 'italic' }}>Apa yang terjadi setelah kirim?</p>
+                    <div className="space-y-3">
+                      {[
+                        { icon: BrainCircuit, text: 'AI memindai foto dalam 5–10 detik' },
+                        { icon: MapPin, text: 'Lokasi divalidasi berada di Kemang' },
+                        { icon: CheckCircle2, text: 'Laporan masuk ke dashboard admin' },
+                      ].map((item, i) => (
+                        <div key={i} className="flex items-center gap-3">
+                          <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'var(--color-brand-blue-50)' }}>
+                            <item.icon className="w-3.5 h-3.5" />
+                          </div>
+                          <span className="text-sm">{item.text}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+            </AnimatePresence>
+          </div>
+        </form>
+      </motion.div>
+    </div>
+  );
+}
