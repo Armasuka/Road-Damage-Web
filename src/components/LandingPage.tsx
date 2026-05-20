@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { JalurLogo, JalurMark, ArrowRight, ShieldCheck, MapPin, BrainCircuit } from './icons';
+import { JalurLogo, JalurMark, ArrowRight, ShieldCheck, MapPin, BrainCircuit, Search, Loader2 } from './icons';
 import { motion, useScroll, useTransform, useMotionValueEvent } from 'motion/react';
+import { LandingView } from '../App';
+import { AnimatedNumber } from '../lib/useCountUp';
 
 interface LandingPageProps {
   onEnter: (role: 'warga' | 'admin') => void;
+  onNavigate: (page: LandingView) => void;
 }
 
 const fadeUp = {
@@ -52,9 +55,24 @@ function AnimatedHeaderLogo({ scrolled }: { scrolled: boolean }) {
   );
 }
 
-export default function LandingPage({ onEnter }: LandingPageProps) {
+export default function LandingPage({ onEnter, onNavigate }: LandingPageProps) {
   const [stats, setStats] = useState({ total: 0, avgRds: 0 });
   const [scrolled, setScrolled] = useState(false);
+  const [trackCode, setTrackCode] = useState('');
+  const [trackResult, setTrackResult] = useState<any>(null);
+  const [trackLoading, setTrackLoading] = useState(false);
+  const [trackError, setTrackError] = useState('');
+
+  const handleTrack = async () => {
+    if (!trackCode.trim()) return;
+    setTrackLoading(true); setTrackError(''); setTrackResult(null);
+    try {
+      const res = await fetch(`/api/reports/track/${trackCode.trim().toUpperCase()}`);
+      if (!res.ok) throw new Error('Laporan tidak ditemukan');
+      setTrackResult(await res.json());
+    } catch (e: any) { setTrackError(e.message || 'Tidak ditemukan'); }
+    finally { setTrackLoading(false); }
+  };
 
   const { scrollY } = useScroll();
   useMotionValueEvent(scrollY, 'change', (v) => setScrolled(v > 60));
@@ -156,9 +174,7 @@ export default function LandingPage({ onEnter }: LandingPageProps) {
               className="absolute -bottom-5 -left-5 p-4 rounded-2xl" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', boxShadow: '0 8px 30px rgba(15,23,42,0.08)' }}
             >
               <span className="eyebrow block mb-1">Laporan Masuk</span>
-              <span className="display-serif text-3xl" style={{ color: 'var(--color-brand-blue)' }}>
-                {stats.total > 0 ? stats.total : '—'}
-              </span>
+              <AnimatedNumber value={stats.total > 0 ? stats.total : '—'} className="display-serif text-3xl" style={{ color: 'var(--color-brand-blue)' }} />
             </motion.div>
             {/* Floating RDS badge */}
             <motion.div
@@ -167,9 +183,7 @@ export default function LandingPage({ onEnter }: LandingPageProps) {
               className="absolute -top-4 -right-4 p-4 rounded-2xl" style={{ background: 'var(--color-brand-blue)', boxShadow: '0 8px 30px rgba(30,58,138,0.25)' }}
             >
               <span className="eyebrow block mb-1" style={{ color: 'var(--color-brand-yellow)' }}>Avg RDS</span>
-              <span className="display-serif text-3xl text-white">
-                {stats.avgRds > 0 ? stats.avgRds : '—'}
-              </span>
+              <AnimatedNumber value={stats.avgRds > 0 ? stats.avgRds : '—'} className="display-serif text-3xl text-white" />
             </motion.div>
           </motion.div>
         </div>
@@ -185,7 +199,8 @@ export default function LandingPage({ onEnter }: LandingPageProps) {
             ref={sectionAI}
             initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-60px' }}
             variants={scaleIn} custom={0}
-            className="tile p-0 overflow-hidden scroll-mt-24"
+            className="tile p-0 overflow-hidden scroll-mt-24 cursor-pointer group"
+            onClick={() => onNavigate('ai-info')}
           >
             <div className="p-7 pb-4">
               <span className="eyebrow" style={{ color: 'var(--color-brand-blue)' }}>Deteksi Otomatis</span>
@@ -193,9 +208,10 @@ export default function LandingPage({ onEnter }: LandingPageProps) {
               <p className="text-sm leading-relaxed" style={{ color: 'var(--color-on-surface-muted)' }}>
                 Computer vision YOLOv11 mengenali pothole, retak memanjang, dan retak buaya — langsung dari satu foto.
               </p>
+              <span className="inline-flex items-center gap-1 mt-3 text-xs font-semibold transition-all group-hover:gap-2" style={{ color: 'var(--color-brand-blue)' }}>Pelajari teknologi AI <ArrowRight size={12} /></span>
             </div>
             <div className="px-7 pb-7">
-              <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid var(--color-border)' }}>
+              <div className="rounded-2xl overflow-hidden transition-transform duration-500 group-hover:scale-[1.02]" style={{ border: '1px solid var(--color-border)' }}>
                 <img src="/images/ai-detect.png" alt="AI Detection" className="w-full h-48 object-cover" />
               </div>
             </div>
@@ -206,8 +222,8 @@ export default function LandingPage({ onEnter }: LandingPageProps) {
             ref={sectionHow}
             initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-60px' }}
             variants={scaleIn} custom={1}
-            className="tile-cta flex flex-col justify-between rounded-[28px] p-8 cursor-pointer scroll-mt-24"
-            onClick={() => onEnter('warga')}
+            className="tile-cta flex flex-col justify-between rounded-[28px] p-8 cursor-pointer scroll-mt-24 group"
+            onClick={() => onNavigate('how-to')}
           >
             <div>
               <span className="eyebrow" style={{ color: 'var(--color-brand-yellow-700)' }}>Cara Lapor</span>
@@ -226,8 +242,8 @@ export default function LandingPage({ onEnter }: LandingPageProps) {
               </div>
             </div>
             <div className="flex items-center justify-between mt-6 pt-5" style={{ borderTop: '1px solid rgba(0,0,0,0.1)' }}>
-              <span className="text-sm font-semibold">Mulai Sekarang</span>
-              <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: 'var(--color-brand-blue)', color: 'var(--color-brand-yellow)' }}>
+              <span className="text-sm font-semibold">Lihat Panduan Lengkap →</span>
+              <div className="w-10 h-10 rounded-full flex items-center justify-center transition-transform group-hover:scale-110" style={{ background: 'var(--color-brand-blue)', color: 'var(--color-brand-yellow)' }}>
                 <ArrowRight size={18} />
               </div>
             </div>
@@ -235,12 +251,11 @@ export default function LandingPage({ onEnter }: LandingPageProps) {
         </div>
 
         {/* Row 2: Stat tiles */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-3 gap-4">
           {[
             { label: 'Laporan Masuk', value: stats.total > 0 ? stats.total.toLocaleString('id-ID') : '—' },
             { label: 'Rata-rata RDS', value: stats.avgRds > 0 ? stats.avgRds : '—' },
             { label: 'Wilayah Aktif', value: '1' },
-            { label: 'Akurasi AI', value: '94%' },
           ].map((s, i) => (
             <motion.div
               key={s.label}
@@ -248,7 +263,7 @@ export default function LandingPage({ onEnter }: LandingPageProps) {
               variants={scaleIn} custom={i}
               className="tile text-center py-6"
             >
-              <span className="display-serif block" style={{ fontSize: '44px', fontWeight: 300, color: 'var(--color-brand-blue)', lineHeight: 1 }}>{s.value}</span>
+              <AnimatedNumber value={s.value} className="display-serif block" style={{ fontSize: '44px', fontWeight: 300, color: 'var(--color-brand-blue)', lineHeight: 1 }} />
               <span className="eyebrow mt-2 block">{s.label}</span>
             </motion.div>
           ))}
@@ -263,14 +278,14 @@ export default function LandingPage({ onEnter }: LandingPageProps) {
             variants={scaleIn} custom={0}
             className="md:col-span-5 tile p-0 overflow-hidden cursor-pointer scroll-mt-24 relative group"
             style={{ minHeight: '320px' }}
-            onClick={() => onEnter('warga')}
+            onClick={() => onNavigate('public-map')}
           >
             <img src="/images/map-aerial.png" alt="Peta Kemang" className="w-full h-full object-cover absolute inset-0 transition-transform duration-500 group-hover:scale-105" />
             <div className="absolute inset-0" style={{ background: 'rgba(30,58,138,0.55)' }} />
             <div className="absolute bottom-6 left-6 right-6 z-10">
               <span className="eyebrow" style={{ color: 'var(--color-brand-yellow)' }}>Wilayah Pantauan</span>
               <h3 className="display-serif text-3xl text-white mt-1">Kecamatan Kemang.</h3>
-              <p className="text-xs text-white/70 mt-1">Klik untuk lihat peta sebaran →</p>
+              <p className="text-xs text-white/70 mt-1 flex items-center gap-1 transition-all group-hover:gap-2">Klik untuk lihat peta interaktif <span>→</span></p>
             </div>
           </motion.div>
 
@@ -278,7 +293,8 @@ export default function LandingPage({ onEnter }: LandingPageProps) {
           <motion.div
             initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-60px' }}
             variants={scaleIn} custom={1}
-            className="md:col-span-4 tile flex flex-col justify-between"
+            className="md:col-span-4 tile flex flex-col justify-between cursor-pointer group"
+            onClick={() => onNavigate('rds-info')}
           >
             <div>
               <span className="eyebrow">Road Damage Score</span>
@@ -305,6 +321,7 @@ export default function LandingPage({ onEnter }: LandingPageProps) {
                 <div className="h-full" style={{ width: '34%', background: 'var(--color-brand-yellow)' }} />
                 <div className="h-full" style={{ width: '33%', background: 'var(--color-success)', borderRadius: '0 9999px 9999px 0' }} />
               </div>
+              <span className="inline-flex items-center gap-1 mt-3 text-xs font-semibold transition-all group-hover:gap-2" style={{ color: 'var(--color-brand-blue)' }}>Pelajari cara perhitungan <ArrowRight size={12} /></span>
             </div>
           </motion.div>
 
@@ -339,6 +356,61 @@ export default function LandingPage({ onEnter }: LandingPageProps) {
           <button onClick={() => onEnter('warga')} className="btn-primary text-base px-7 py-4 shrink-0 relative z-10">
             Buka Peta & Lapor <ArrowRight size={18} />
           </button>
+        </motion.div>
+
+        {/* Row 5: Track Report */}
+        <motion.div
+          initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-60px' }}
+          variants={scaleIn} custom={0}
+          className="tile p-8 mt-4"
+        >
+          <div className="flex flex-col md:flex-row md:items-end gap-6">
+            <div className="flex-1">
+              <span className="eyebrow block mb-2" style={{ color: 'var(--color-brand-blue)' }}>Lacak Laporan</span>
+              <h3 className="display-serif text-2xl mb-2">Cek status laporan Anda.</h3>
+              <p className="text-sm mb-4" style={{ color: 'var(--color-on-surface-muted)' }}>Masukkan kode unik yang diberikan saat melapor (contoh: LAP-ABCD)</p>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4" />
+                  <input
+                    type="text"
+                    placeholder="LAP-XXXX"
+                    value={trackCode}
+                    onChange={(e) => setTrackCode(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleTrack()}
+                    className="input-base pl-12 uppercase"
+                    style={{ fontFamily: 'var(--font-mono)', letterSpacing: '0.05em' }}
+                  />
+                </div>
+                <button onClick={handleTrack} disabled={trackLoading || !trackCode.trim()} className="btn-primary px-6 py-3">
+                  {trackLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Lacak'}
+                </button>
+              </div>
+            </div>
+
+            {trackResult && (
+              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex-1 p-5 rounded-2xl" style={{ background: 'var(--color-surface-cream)', border: '1px solid var(--color-border)' }}>
+                <div className="flex items-baseline gap-3 mb-3">
+                  <span className="display-serif text-2xl" style={{ color: 'var(--color-brand-blue)', fontFeatureSettings: '"tnum"' }}>{trackResult.kodeUnik}</span>
+                  <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase ${trackResult.status === 'resolved' ? 'badge-status-resolved' : trackResult.status === 'reviewed' ? 'badge-status-reviewed' : 'badge-status-pending'}`}>
+                    {trackResult.status === 'pending' ? 'Menunggu' : trackResult.status === 'reviewed' ? 'Ditinjau' : 'Selesai'}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3 rounded-xl" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
+                    <span className="eyebrow block" style={{ fontSize: '9px' }}>RDS Score</span>
+                    <span className="display-serif text-xl" style={{ color: trackResult.rdsScore < 40 ? '#ef4444' : trackResult.rdsScore < 70 ? '#f59e0b' : '#22c55e' }}>{trackResult.rdsScore || '—'}</span>
+                  </div>
+                  <div className="p-3 rounded-xl" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
+                    <span className="eyebrow block" style={{ fontSize: '9px' }}>Deteksi AI</span>
+                    <span className="display-serif text-xl" style={{ color: 'var(--color-brand-blue)' }}>{trackResult.detectionsCount ?? '—'}</span>
+                  </div>
+                </div>
+                {trackResult.address && <p className="text-xs mt-3 flex items-center gap-1" style={{ color: 'var(--color-on-surface-muted)' }}><MapPin className="w-3 h-3" />{trackResult.address}</p>}
+              </motion.div>
+            )}
+            {trackError && <p className="text-sm font-medium" style={{ color: '#ef4444' }}>{trackError}</p>}
+          </div>
         </motion.div>
       </section>
 

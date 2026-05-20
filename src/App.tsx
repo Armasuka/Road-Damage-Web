@@ -5,11 +5,16 @@ import ReportForm from './components/ReportForm';
 import HistoryList from './components/HistoryList';
 import LandingPage from './components/LandingPage';
 import AdminLogin from './components/AdminLogin';
+import PublicMapPage from './components/PublicMapPage';
+import AIInfoPage from './components/AIInfoPage';
+import HowToPage from './components/HowToPage';
+import RDSInfoPage from './components/RDSInfoPage';
 import { BarChart3 } from './components/icons';
 import AnalyticsView from './components/AnalyticsView';
 import { motion, AnimatePresence } from 'motion/react';
 
 export type Role = 'warga' | 'admin' | null;
+export type LandingView = 'public-map' | 'ai-info' | 'how-to' | 'rds-info' | null;
 
 export default function App() {
   const [currentView, setCurrentView] = useState<View>('report');
@@ -17,6 +22,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [role, setRole] = useState<Role>(null);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
+  const [landingView, setLandingView] = useState<LandingView>(null);
 
   const fetchReports = async () => {
     try {
@@ -69,18 +75,61 @@ export default function App() {
     }
   };
 
+  const handleEnter = (r: 'warga' | 'admin') => {
+    setLandingView(null);
+    if (r === 'admin') {
+      setShowAdminLogin(true);
+    } else {
+      setRole('warga');
+    }
+  };
+
   if (showAdminLogin) {
-    return <AdminLogin onLogin={() => { setRole('admin'); setShowAdminLogin(false); }} onBack={() => setShowAdminLogin(false)} />;
+    return <AdminLogin onLogin={() => { setRole('admin'); setShowAdminLogin(false); }} onBack={() => { setShowAdminLogin(false); }} />;
+  }
+
+  // Sub-pages accessible from landing (no login required)
+  if (role === null && landingView !== null) {
+    return (
+      <AnimatePresence mode="wait">
+        {landingView === 'public-map' && (
+          <PublicMapPage
+            key="public-map"
+            onBack={() => setLandingView(null)}
+            onEnter={handleEnter}
+          />
+        )}
+        {landingView === 'ai-info' && (
+          <AIInfoPage
+            key="ai-info"
+            onBack={() => setLandingView(null)}
+            onEnter={handleEnter}
+          />
+        )}
+        {landingView === 'how-to' && (
+          <HowToPage
+            key="how-to"
+            onBack={() => setLandingView(null)}
+            onEnter={handleEnter}
+          />
+        )}
+        {landingView === 'rds-info' && (
+          <RDSInfoPage
+            key="rds-info"
+            onBack={() => setLandingView(null)}
+            onNavigateMap={() => setLandingView('public-map')}
+            onEnter={handleEnter}
+          />
+        )}
+      </AnimatePresence>
+    );
   }
 
   if (role === null) {
-    return <LandingPage onEnter={(r) => {
-      if (r === 'admin') {
-        setShowAdminLogin(true);
-      } else {
-        setRole('warga');
-      }
-    }} />;
+    return <LandingPage
+      onEnter={handleEnter}
+      onNavigate={(page) => setLandingView(page)}
+    />;
   }
 
   return (

@@ -2,6 +2,7 @@ import React from 'react';
 import MapDisplay from './MapDisplay';
 import { ShieldAlert, AlertTriangle, CheckCircle, TrendingDown, ArrowRight, Send } from './icons';
 import { motion } from 'motion/react';
+import { AnimatedNumber } from '../lib/useCountUp';
 
 import { Role } from '../App';
 
@@ -75,9 +76,7 @@ export default function Dashboard({ reports, role, onNavigate }: DashboardProps)
                   <stat.icon className="w-[18px] h-[18px]" />
                 </div>
               </div>
-              <span className="display-serif" style={{ fontSize: '60px', fontWeight: 300, letterSpacing: '-0.04em', color: 'var(--color-brand-blue)', lineHeight: 1 }}>
-                {stat.value}
-              </span>
+              <AnimatedNumber value={stat.value} className="display-serif" style={{ fontSize: '60px', fontWeight: 300, letterSpacing: '-0.04em', color: 'var(--color-brand-blue)', lineHeight: 1 }} />
             </motion.div>
           ))}
         </div>

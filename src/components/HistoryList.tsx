@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { format } from 'date-fns';
-import { ExternalLink, Filter, Search, ArrowRight, BrainCircuit, Loader2, X, MapPin, ChevronLeft, ChevronRight, Eye, EyeOff } from './icons';
+import { ExternalLink, Filter, Search, ArrowRight, BrainCircuit, Loader2, X, MapPin, ChevronLeft, ChevronRight, Eye, EyeOff, Download } from './icons';
 import { getStatusColor, getScoreColor } from '../lib/utils';
 import { Report } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
@@ -22,6 +22,80 @@ export default function HistoryList({ reports, isAdmin, onStatusChange, onDetect
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [showFilterMenu, setShowFilterMenu] = useState(false);
+  const [comparisonPos, setComparisonPos] = useState(100); // 100% = full overlay
+  const sliderRef = useRef<HTMLDivElement>(null);
+
+  const handleSliderMove = useCallback((clientX: number) => {
+    if (!sliderRef.current) return;
+    const rect = sliderRef.current.getBoundingClientRect();
+    const pos = Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100));
+    setComparisonPos(pos);
+  }, []);
+
+  const handleExportPDF = async (report: Report) => {
+    const { jsPDF } = await import('jspdf');
+    const doc = new jsPDF('p', 'mm', 'a4');
+    const w = doc.internal.pageSize.getWidth();
+    
+    // Header
+    doc.setFillColor(30, 58, 138);
+    doc.rect(0, 0, w, 40, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(22);
+    doc.text('JALUR', 15, 20);
+    doc.setFontSize(10);
+    doc.text('Sistem Pelaporan Kerusakan Jalan', 15, 28);
+    doc.setFontSize(12);
+    doc.text(report.kodeUnik || 'Laporan', w - 15, 20, { align: 'right' });
+    doc.setFontSize(9);
+    doc.text(report.createdAt ? format(new Date(report.createdAt), 'dd MMM yyyy, HH:mm') : '', w - 15, 28, { align: 'right' });
+    
+    // Body
+    let y = 52;
+    doc.setTextColor(30, 58, 138);
+    doc.setFontSize(14);
+    doc.text('Detail Laporan', 15, y); y += 10;
+    
+    doc.setTextColor(50, 50, 50);
+    doc.setFontSize(10);
+    const fields = [
+      ['Status', report.status === 'pending' ? 'Menunggu' : report.status === 'reviewed' ? 'Ditinjau' : 'Selesai'],
+      ['RDS Score', `${report.rdsScore} (${report.rdsScore < 40 ? 'Parah' : report.rdsScore < 70 ? 'Sedang' : 'Ringan'})`],
+      ['Koordinat', `${report.latitude}, ${report.longitude}`],
+      ['Alamat', report.address || '-'],
+      ['Email', report.email || '-'],
+      ['Deskripsi', report.deskripsi || '-'],
+    ];
+    fields.forEach(([label, val]) => {
+      doc.setFont('helvetica', 'bold');
+      doc.text(`${label}:`, 15, y);
+      doc.setFont('helvetica', 'normal');
+      const lines = doc.splitTextToSize(val, w - 65);
+      doc.text(lines, 55, y);
+      y += lines.length * 5 + 4;
+    });
+    
+    // Detections
+    if (report.detections && report.detections.length > 0) {
+      y += 5;
+      doc.setTextColor(30, 58, 138);
+      doc.setFontSize(14);
+      doc.text('Hasil Deteksi AI', 15, y); y += 10;
+      doc.setTextColor(50, 50, 50);
+      doc.setFontSize(10);
+      report.detections.forEach((det, i) => {
+        doc.text(`${i+1}. ${det.class} — ${Math.round(det.confidence * 100)}%`, 15, y);
+        y += 7;
+      });
+    }
+    
+    // Footer
+    doc.setFontSize(8);
+    doc.setTextColor(150, 150, 150);
+    doc.text('Digenerate otomatis oleh JALUR — Proyek percontohan Kecamatan Kemang, Bogor', w / 2, 285, { align: 'center' });
+    
+    doc.save(`JALUR_${report.kodeUnik || report.id}.pdf`);
+  };
 
   useEffect(() => {
     setCurrentImgIdx(0);
@@ -290,7 +364,8 @@ export default function HistoryList({ reports, isAdmin, onStatusChange, onDetect
                     />
                     
                     {/* Bounding Boxes */}
-                    {showOverlay && selectedReport.detections?.filter(d => d.image_index === currentImgIdx || d.image_index === undefined).map((det, i) => {
+                    <div style={{ position: 'absolute', inset: 0, clipPath: `inset(0 ${100 - comparisonPos}% 0 0)` }}>
+                    {selectedReport.detections?.filter(d => d.image_index === currentImgIdx || d.image_index === undefined).map((det, i) => {
                        const left = (det.bbox.x / imgDims.w) * 100;
                        const top = (det.bbox.y / imgDims.h) * 100;
                        const width = (det.bbox.width / imgDims.w) * 100;
@@ -319,6 +394,7 @@ export default function HistoryList({ reports, isAdmin, onStatusChange, onDetect
                          </div>
                        );
                     })}
+                    </div>
                   </div>
                 )}
                 
@@ -355,17 +431,42 @@ export default function HistoryList({ reports, isAdmin, onStatusChange, onDetect
                   </>
                 )}
 
-                {/* AI Toggle */}
-                <div className="absolute top-8 left-8 z-10">
+                {/* AI Comparison Slider */}
+                <div className="absolute top-8 left-8 z-10 flex gap-2">
                   <button 
-                    onClick={() => setShowOverlay(!showOverlay)}
+                    onClick={() => setComparisonPos(comparisonPos > 0 ? 0 : 100)}
                     className="flex items-center gap-2 px-3 py-1.5 rounded-full text-white text-[10px] font-bold transition-colors uppercase tracking-widest"
                     style={{ background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.2)' }}
                   >
                     <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--color-brand-yellow)' }} />
-                    {showOverlay ? <><EyeOff className="w-4 h-4" /> Hide AI</> : <><Eye className="w-4 h-4" /> Show AI</>}
+                    {comparisonPos > 0 ? <><EyeOff className="w-4 h-4" /> Hide AI</> : <><Eye className="w-4 h-4" /> Show AI</>}
                   </button>
                 </div>
+
+                {/* Comparison slider handle */}
+                {selectedReport.detections && selectedReport.detections.length > 0 && (
+                  <div 
+                    ref={sliderRef}
+                    className="absolute inset-0 z-20 cursor-ew-resize"
+                    style={{ margin: '24px' }}
+                    onMouseDown={(e) => {
+                      handleSliderMove(e.clientX);
+                      const onMove = (ev: MouseEvent) => handleSliderMove(ev.clientX);
+                      const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+                      window.addEventListener('mousemove', onMove);
+                      window.addEventListener('mouseup', onUp);
+                    }}
+                    onTouchStart={(e) => {
+                      handleSliderMove(e.touches[0].clientX);
+                      const onMove = (ev: TouchEvent) => handleSliderMove(ev.touches[0].clientX);
+                      const onUp = () => { window.removeEventListener('touchmove', onMove); window.removeEventListener('touchend', onUp); };
+                      window.addEventListener('touchmove', onMove);
+                      window.addEventListener('touchend', onUp);
+                    }}
+                  >
+                    <div className="comparison-slider-handle" style={{ left: `${comparisonPos}%` }} />
+                  </div>
+                )}
 
                 {/* Mobile close */}
                 <button 
@@ -457,6 +558,53 @@ export default function HistoryList({ reports, isAdmin, onStatusChange, onDetect
                         </div>
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {/* Status Timeline */}
+                <div className="pt-4" style={{ borderTop: '1px solid var(--color-border)' }}>
+                  <span className="eyebrow mb-4 block">Timeline Status</span>
+                  <div className="relative pl-6">
+                    <div className="absolute left-[7px] top-2 bottom-2 w-0.5" style={{ background: 'var(--color-border)' }} />
+                    {[
+                      { label: 'Dilaporkan', key: 'pending', desc: selectedReport.createdAt ? format(new Date(selectedReport.createdAt), 'dd MMM yyyy, HH:mm') : 'Baru saja' },
+                      { label: 'Ditinjau Admin', key: 'reviewed', desc: selectedReport.status === 'reviewed' || selectedReport.status === 'resolved' ? 'Sudah ditinjau' : 'Menunggu' },
+                      { label: 'Selesai Diperbaiki', key: 'resolved', desc: selectedReport.status === 'resolved' ? 'Sudah selesai' : 'Belum' },
+                    ].map((step, i) => {
+                      const statusOrder = ['pending', 'reviewed', 'resolved'];
+                      const current = statusOrder.indexOf(selectedReport.status);
+                      const isActive = i <= current;
+                      const isCurrent = statusOrder[i] === selectedReport.status;
+                      return (
+                        <div key={step.key} className="relative flex items-start gap-3 mb-5 last:mb-0">
+                          <div className="absolute -left-6 w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all"
+                            style={{
+                              borderColor: isActive ? 'var(--color-brand-blue)' : 'var(--color-border)',
+                              background: isActive ? 'var(--color-brand-blue)' : 'var(--color-surface)',
+                            }}>
+                            {isActive && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold" style={{ color: isActive ? 'var(--color-on-surface)' : 'var(--color-on-surface-muted)' }}>{step.label}</p>
+                            <p className="text-[11px]" style={{ color: 'var(--color-on-surface-muted)' }}>{step.desc}</p>
+                            {isCurrent && <span className="inline-block mt-1 text-[9px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'var(--color-brand-blue-50)', color: 'var(--color-brand-blue)' }}>Status saat ini</span>}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Export PDF (admin) */}
+                {isAdmin && selectedReport.rdsScore > 0 && (
+                  <div className="pt-4" style={{ borderTop: '1px solid var(--color-border)' }}>
+                    <button
+                      onClick={() => handleExportPDF(selectedReport)}
+                      className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-semibold transition-colors"
+                      style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', cursor: 'pointer', color: 'var(--color-on-surface)' }}
+                    >
+                      <Download className="w-4 h-4" /> Export PDF
+                    </button>
                   </div>
                 )}
 

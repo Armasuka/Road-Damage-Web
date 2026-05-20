@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { motion } from 'motion/react';
 import { ShieldAlert, AlertTriangle, CheckCircle, TrendingDown } from './icons';
+import { AnimatedNumber } from '../lib/useCountUp';
 
 interface AnalyticsViewProps {
   reports: any[];
@@ -88,9 +89,7 @@ export default function AnalyticsView({ reports }: AnalyticsViewProps) {
                 <kpi.icon className="w-4 h-4" />
               </div>
             </div>
-            <span className="display-serif" style={{ fontSize: '48px', fontWeight: 300, letterSpacing: '-0.04em', color: 'var(--color-brand-blue)', lineHeight: 1 }}>
-              {kpi.value}
-            </span>
+            <AnimatedNumber value={kpi.value} className="display-serif" style={{ fontSize: '48px', fontWeight: 300, letterSpacing: '-0.04em', color: 'var(--color-brand-blue)', lineHeight: 1 }} />
           </motion.div>
         ))}
       </div>

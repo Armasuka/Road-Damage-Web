@@ -330,6 +330,29 @@ async function startServer() {
     }
   });
 
+  // Public tracking endpoint
+  app.get("/api/reports/track/:kode", async (req, res) => {
+    try {
+      if (!db) return res.status(500).json({ error: "No DB" });
+      const { kode } = req.params;
+      const [report] = await db.select().from(laporan).where(eq(laporan.kode_unik, kode.toUpperCase()));
+      if (!report) return res.status(404).json({ error: "Laporan tidak ditemukan" });
+
+      const dets = await db.select().from(deteksi).where(eq(deteksi.id_laporan, report.id_laporan));
+      res.json({
+        kodeUnik: report.kode_unik,
+        status: report.status,
+        rdsScore: report.rds_score,
+        createdAt: report.tanggal,
+        address: report.alamat,
+        detectionsCount: dets.length,
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: "Failed to track report" });
+    }
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
