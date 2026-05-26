@@ -1,6 +1,8 @@
 import React, { useMemo } from 'react';
+const ease = [0.22, 1, 0.36, 1] as const;
 import { motion } from 'motion/react';
 import { ShieldAlert, AlertTriangle, CheckCircle, TrendingDown } from './icons';
+import EmptyState from './EmptyState';
 import { AnimatedNumber } from '../lib/useCountUp';
 
 interface AnalyticsViewProps {
@@ -14,7 +16,7 @@ export default function AnalyticsView({ reports }: AnalyticsViewProps) {
   const statusCounts = useMemo(() => ({
     pending: reports.filter(r => r.status === 'pending').length,
     reviewed: reports.filter(r => r.status === 'reviewed').length,
-    resolved: reports.filter(r => r.status === 'resolved').length,
+    diteruskan: reports.filter(r => r.status === 'diteruskan').length,
   }), [reports]);
 
   // RDS distribution buckets
@@ -49,7 +51,7 @@ export default function AnalyticsView({ reports }: AnalyticsViewProps) {
       <motion.div
         initial={{ width: 0 }}
         animate={{ width: max > 0 ? `${(value / max) * 100}%` : '0%' }}
-        transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+        transition={{ duration: 0.8, ease }}
         className="h-full rounded-full flex items-center justify-end pr-2"
         style={{ background: color, minWidth: value > 0 ? '24px' : '0px' }}
       >
@@ -73,7 +75,7 @@ export default function AnalyticsView({ reports }: AnalyticsViewProps) {
           { label: 'Total Laporan', value: reports.length, icon: ShieldAlert },
           { label: 'Sudah Dianalisis', value: analyzed.length, icon: TrendingDown },
           { label: 'Rata-rata RDS', value: avgRDS || '—', icon: AlertTriangle },
-          { label: 'Terselesaikan', value: statusCounts.resolved, icon: CheckCircle },
+          { label: 'Terselesaikan', value: statusCounts.diteruskan, icon: CheckCircle },
         ].map((kpi, i) => (
           <motion.div
             key={kpi.label}
@@ -81,7 +83,7 @@ export default function AnalyticsView({ reports }: AnalyticsViewProps) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.08 }}
             className="tile flex flex-col justify-between"
-            style={{ minHeight: '130px' }}
+            style={{ minHeight: '110px' }}
           >
             <div className="flex items-center justify-between mb-3">
               <span className="eyebrow">{kpi.label}</span>
@@ -89,7 +91,7 @@ export default function AnalyticsView({ reports }: AnalyticsViewProps) {
                 <kpi.icon className="w-4 h-4" />
               </div>
             </div>
-            <AnimatedNumber value={kpi.value} className="display-serif" style={{ fontSize: '48px', fontWeight: 300, letterSpacing: '-0.04em', color: 'var(--color-brand-blue)', lineHeight: 1 }} />
+            <AnimatedNumber value={kpi.value} className="display-serif" style={{ fontSize: 'clamp(32px, 7vw, 48px)', fontWeight: 300, letterSpacing: '-0.04em', color: 'var(--color-brand-blue)', lineHeight: 1 }} />
           </motion.div>
         ))}
       </div>
@@ -107,7 +109,7 @@ export default function AnalyticsView({ reports }: AnalyticsViewProps) {
             {[
               { label: 'Pending', value: statusCounts.pending, color: 'var(--color-brand-yellow)' },
               { label: 'Reviewed', value: statusCounts.reviewed, color: 'var(--color-brand-blue-500)' },
-              { label: 'Resolved', value: statusCounts.resolved, color: 'var(--color-success)' },
+              { label: 'Resolved', value: statusCounts.diteruskan, color: 'var(--color-success)' },
             ].map(item => (
               <div key={item.label} className="flex items-center gap-3">
                 <span className="text-xs font-semibold w-16" style={{ color: 'var(--color-on-surface-muted)' }}>{item.label}</span>
@@ -161,7 +163,7 @@ export default function AnalyticsView({ reports }: AnalyticsViewProps) {
               </div>
             </>
           ) : (
-            <p className="text-sm py-8 text-center" style={{ color: 'var(--color-on-surface-muted)' }}>Belum ada laporan yang dianalisis AI.</p>
+            <EmptyState message="Belum ada laporan yang dianalisis AI." subtext="Jalankan analisis AI dari halaman Riwayat." />
           )}
         </motion.div>
 
@@ -178,7 +180,7 @@ export default function AnalyticsView({ reports }: AnalyticsViewProps) {
               {detectionClasses.map(([cls, count], i) => (
                 <div key={cls} className="flex items-center justify-between p-4 rounded-2xl" style={{ background: 'var(--color-surface-cream)', border: '1px solid var(--color-border)' }}>
                   <div className="flex items-center gap-3">
-                    <span className="w-3 h-3 rounded-full" style={{ background: i % 2 === 0 ? 'var(--color-brand-blue)' : 'var(--color-brand-yellow)' }} />
+                    <span className="w-3 h-3 rounded-full" style={{ background: cls === 'pothole' ? '#ef4444' : cls === 'alligator crack' ? '#f59e0b' : '#3b82f6' }} />
                     <span className="text-sm font-semibold capitalize">{cls}</span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -191,7 +193,7 @@ export default function AnalyticsView({ reports }: AnalyticsViewProps) {
               ))}
             </div>
           ) : (
-            <p className="text-sm py-8 text-center" style={{ color: 'var(--color-on-surface-muted)' }}>Belum ada deteksi AI yang tersedia.</p>
+            <EmptyState message="Belum ada deteksi AI yang tersedia." subtext="Hasil deteksi akan muncul setelah laporan dianalisis." />
           )}
         </motion.div>
       </div>

@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { format } from 'date-fns';
-import { ExternalLink, Filter, Search, ArrowRight, BrainCircuit, Loader2, X, MapPin, ChevronLeft, ChevronRight, Eye, EyeOff, Download } from './icons';
+import { ExternalLink, Filter, Search, ArrowRight, BrainCircuit, Loader2, X, MapPin, ChevronLeft, ChevronRight, Download } from './icons';
+import EmptyState from './EmptyState';
 import { getStatusColor, getScoreColor } from '../lib/utils';
 import { Report } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
@@ -17,20 +18,26 @@ export default function HistoryList({ reports, isAdmin, onStatusChange, onDetect
   const [detectingId, setDetectingId] = useState<number | null>(null);
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [currentImgIdx, setCurrentImgIdx] = useState(0);
-  const [showOverlay, setShowOverlay] = useState(true);
   const [imgDims, setImgDims] = useState({w: 1, h: 1});
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [showFilterMenu, setShowFilterMenu] = useState(false);
-  const [comparisonPos, setComparisonPos] = useState(100); // 100% = full overlay
-  const sliderRef = useRef<HTMLDivElement>(null);
+  const [showDetections, setShowDetections] = useState(true);
+  const filterRef = useRef<HTMLDivElement>(null);
 
-  const handleSliderMove = useCallback((clientX: number) => {
-    if (!sliderRef.current) return;
-    const rect = sliderRef.current.getBoundingClientRect();
-    const pos = Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100));
-    setComparisonPos(pos);
-  }, []);
+  // Close filter menu when clicking outside
+  useEffect(() => {
+    if (!showFilterMenu) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (filterRef.current && !filterRef.current.contains(e.target as Node)) {
+        setShowFilterMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showFilterMenu]);
+
+
 
   const handleExportPDF = async (report: Report) => {
     const { jsPDF } = await import('jspdf');
@@ -122,7 +129,7 @@ export default function HistoryList({ reports, isAdmin, onStatusChange, onDetect
     switch (status) {
       case 'pending': return 'badge-status-pending';
       case 'reviewed': return 'badge-status-reviewed';
-      case 'resolved': return 'badge-status-resolved';
+      case 'diteruskan': return 'badge-status-diteruskan';
       default: return 'badge-status-pending';
     }
   };
@@ -157,11 +164,11 @@ export default function HistoryList({ reports, isAdmin, onStatusChange, onDetect
               placeholder="Cari kode, email, alamat..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="input-base pl-10 pr-4 py-2 text-xs"
-              style={{ width: '240px' }}
+              className="input-base pl-10 pr-4 py-2 text-xs w-full"
+              style={{ minWidth: '180px', maxWidth: '280px' }}
             />
           </div>
-          <div className="relative">
+          <div className="relative" ref={filterRef}>
             <button 
               onClick={() => setShowFilterMenu(!showFilterMenu)}
               className="w-9 h-9 flex items-center justify-center rounded-xl transition-colors"
@@ -174,14 +181,14 @@ export default function HistoryList({ reports, isAdmin, onStatusChange, onDetect
             </button>
             {showFilterMenu && (
               <div className="absolute right-0 top-full mt-2 w-40 py-2 rounded-2xl z-50" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', boxShadow: '0 8px 30px rgba(15,23,42,0.12)' }}>
-                {['all', 'pending', 'reviewed', 'resolved'].map(s => (
+                {['all', 'pending', 'reviewed', 'diteruskan'].map(s => (
                   <button
                     key={s}
                     onClick={() => { setStatusFilter(s); setShowFilterMenu(false); }}
                     className="w-full px-4 py-2 text-left text-xs font-medium transition-colors hover:bg-[var(--color-surface-cream)]"
                     style={{ color: statusFilter === s ? 'var(--color-brand-blue)' : 'var(--color-on-surface-muted)', fontWeight: statusFilter === s ? 700 : 500 }}
                   >
-                    {s === 'all' ? 'Semua Status' : s === 'pending' ? '⏳ Pending' : s === 'reviewed' ? '👁 Reviewed' : '✅ Resolved'}
+                    {s === 'all' ? 'Semua Status' : s === 'pending' ? 'Pending' : s === 'reviewed' ? 'Reviewed' : 'Resolved'}
                   </button>
                 ))}
               </div>
@@ -190,8 +197,68 @@ export default function HistoryList({ reports, isAdmin, onStatusChange, onDetect
         </div>
       </div>
 
-      {/* Table */}
-      <div className="overflow-x-auto card">
+      {/* Mobile Card Layout */}
+      <div className="md:hidden space-y-3">
+        {filteredReports.map((report) => (
+          <motion.div
+            key={report.id}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="card p-4 cursor-pointer active:scale-[0.98] transition-transform"
+            onClick={() => setSelectedReport(report)}
+          >
+            <div className="flex gap-3">
+              <div className="w-14 h-14 rounded-xl overflow-hidden shrink-0" style={{ border: '1px solid var(--color-border)', background: '#f1f5f9' }}>
+                {(() => {
+                  let firstImg = report.imageUrl;
+                  try {
+                    const parsed = JSON.parse(firstImg);
+                    if (Array.isArray(parsed) && parsed.length > 0) firstImg = parsed[0];
+                  } catch (e) {}
+                  return firstImg ? <img src={firstImg} alt="Damage" className="w-full h-full object-cover" /> : null;
+                })()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-semibold text-sm truncate" style={{ fontFamily: 'var(--font-mono)' }}>{report.kodeUnik || 'Laporan'}</p>
+                  {report.rdsScore > 0 && (
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${report.rdsScore < 50 ? 'badge-accent' : ''}`}
+                      style={report.rdsScore >= 50 ? { background: 'var(--color-brand-blue-50)', color: 'var(--color-brand-blue)' } : {}}
+                    >
+                      RDS {report.rdsScore}
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs mt-0.5 truncate" style={{ color: 'var(--color-on-surface-muted)' }}>
+                  {report.address || `${report.latitude.toFixed(4)}, ${report.longitude.toFixed(4)}`}
+                </p>
+                <div className="flex items-center justify-between mt-2">
+                  <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${getStatusBadgeClass(report.status)}`}>
+                    {report.status}
+                  </span>
+                  <span className="text-[10px]" style={{ color: 'var(--color-on-surface-muted)' }}>
+                    {report.createdAt ? format(new Date(report.createdAt), 'dd MMM, HH:mm') : '-'}
+                  </span>
+                </div>
+              </div>
+            </div>
+            {isAdmin && report.rdsScore === 0 && (
+              <button 
+                onClick={(e) => { e.stopPropagation(); handleDetectClick(report.id); }}
+                disabled={detectingId === report.id}
+                className="w-full mt-3 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-colors"
+                style={{ background: 'var(--color-brand-blue-50)', color: 'var(--color-brand-blue)' }}
+              >
+                {detectingId === report.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <BrainCircuit className="w-3.5 h-3.5" />}
+                Analisis AI
+              </button>
+            )}
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Desktop Table Layout */}
+      <div className="overflow-x-auto card hidden md:block">
         <table className="w-full text-left text-sm">
           <thead style={{ background: 'var(--color-surface-cream)', borderBottom: '1px solid var(--color-border)' }}>
             <tr>
@@ -274,7 +341,7 @@ export default function HistoryList({ reports, isAdmin, onStatusChange, onDetect
                     >
                       <option value="pending">Pending</option>
                       <option value="reviewed">Reviewed</option>
-                      <option value="resolved">Resolved</option>
+                      <option value="diteruskan">Resolved</option>
                     </select>
                   ) : (
                     <span className={getStatusBadgeClass(report.status)}>
@@ -296,32 +363,20 @@ export default function HistoryList({ reports, isAdmin, onStatusChange, onDetect
             ))}
           </tbody>
         </table>
-        
-        {filteredReports.length === 0 && (
-          <div className="py-20 text-center space-y-3">
-            <p className="text-sm font-medium" style={{ color: 'var(--color-on-surface-muted)' }}>
-              {searchQuery || statusFilter !== 'all' ? 'Tidak ada laporan yang cocok dengan filter.' : 'Belum ada laporan yang tersedia.'}
-            </p>
-            {searchQuery || statusFilter !== 'all' ? (
-              <button 
-                onClick={() => { setSearchQuery(''); setStatusFilter('all'); }}
-                className="flex items-center justify-center gap-1 mx-auto text-sm font-semibold" 
-                style={{ color: 'var(--color-brand-blue)', background: 'none', border: 'none', cursor: 'pointer' }}
-              >
-                Reset Filter
-              </button>
-            ) : onNavigateReport ? (
-              <button 
-                onClick={onNavigateReport}
-                className="flex items-center justify-center gap-1 mx-auto text-sm font-semibold" 
-                style={{ color: 'var(--color-brand-blue)', background: 'none', border: 'none', cursor: 'pointer' }}
-              >
-                Mulai Laporkan <ArrowRight className="w-4 h-4" />
-              </button>
-            ) : null}
-          </div>
-        )}
       </div>
+        
+      {filteredReports.length === 0 && (
+        <EmptyState
+          message={searchQuery || statusFilter !== 'all' ? 'Tidak ada laporan yang cocok dengan filter.' : 'Belum ada laporan yang tersedia.'}
+          action={
+            searchQuery || statusFilter !== 'all'
+              ? { label: 'Reset Filter', onClick: () => { setSearchQuery(''); setStatusFilter('all'); } }
+              : onNavigateReport
+                ? { label: 'Mulai Laporkan', onClick: onNavigateReport }
+                : undefined
+          }
+        />
+      )}
 
       {/* ── Review Modal ───────────────────────── */}
       <AnimatePresence>
@@ -339,61 +394,64 @@ export default function HistoryList({ reports, isAdmin, onStatusChange, onDetect
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[1080px] max-h-[90vh] z-[101] overflow-hidden flex flex-col md:flex-row"
-              style={{ background: 'var(--color-surface-cream)', borderRadius: '28px', boxShadow: '0 40px 80px rgba(15,23,42,0.4)' }}
+              className="fixed inset-0 md:inset-auto md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 w-full md:max-w-[1080px] h-full md:h-auto md:max-h-[90vh] z-[101] flex flex-col md:flex-row modal-review"
+              style={{ background: 'var(--color-surface-cream)', boxShadow: '0 40px 80px rgba(15,23,42,0.4)' }}
             >
-              {/* Close button */}
+              {/* Close button — works on both mobile and desktop */}
               <button 
                 onClick={() => setSelectedReport(null)}
-                className="absolute top-5 right-5 w-10 h-10 rounded-full flex items-center justify-center z-10 transition-colors"
+                className="absolute top-4 right-4 md:top-5 md:right-5 w-10 h-10 rounded-full flex items-center justify-center z-20 transition-colors"
                 style={{ background: 'rgba(255,255,255,0.9)', border: '1px solid var(--color-border)' }}
               >
                 <X className="w-4 h-4" />
               </button>
 
               {/* LEFT: Image Gallery */}
-              <div className="md:w-[52%] relative flex items-center justify-center min-h-[300px]" style={{ background: '#0f172a' }}>
+              <div className="shrink-0 md:w-[52%] relative flex items-center justify-center h-[40vh] md:h-auto" style={{ background: '#0f172a' }}>
                 {modalImages.length > 0 && (
-                  <div className="relative max-w-full max-h-full inline-block">
-                    <img 
-                      src={modalImages[currentImgIdx]} 
-                      alt="Kerusakan" 
-                      className="max-w-full max-h-[50vh] md:max-h-[90vh] block w-auto h-auto"
-                      style={{ borderRadius: '18px', margin: '24px' }}
-                      onLoad={(e) => setImgDims({w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight})}
-                    />
-                    
-                    {/* Bounding Boxes */}
-                    <div style={{ position: 'absolute', inset: 0, clipPath: `inset(0 ${100 - comparisonPos}% 0 0)` }}>
-                    {selectedReport.detections?.filter(d => d.image_index === currentImgIdx || d.image_index === undefined).map((det, i) => {
-                       const left = (det.bbox.x / imgDims.w) * 100;
-                       const top = (det.bbox.y / imgDims.h) * 100;
-                       const width = (det.bbox.width / imgDims.w) * 100;
-                       const height = (det.bbox.height / imgDims.h) * 100;
-                       
-                       const isHighConf = det.confidence > 0.5;
+                  <div className="relative p-4 md:p-6 flex items-center justify-center w-full h-full">
+                    <div className="relative inline-block max-h-full">
+                      <img 
+                        src={modalImages[currentImgIdx]} 
+                        alt="Kerusakan" 
+                        className="block max-w-full max-h-[32vh] md:max-h-[80vh] w-auto h-auto object-contain"
+                        style={{ borderRadius: '12px' }}
+                        onLoad={(e) => setImgDims({w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight})}
+                      />
+                      
+                      {/* Bounding Boxes — positioned relative to the image */}
+                      {showDetections && selectedReport.detections?.filter(d => d.image_index === currentImgIdx || d.image_index === undefined).map((det, i) => {
+                         const left = (det.bbox.x / imgDims.w) * 100;
+                         const top = (det.bbox.y / imgDims.h) * 100;
+                         const width = (det.bbox.width / imgDims.w) * 100;
+                         const height = (det.bbox.height / imgDims.h) * 100;
+                         
+                         const catColor = det.class === 'pothole' ? '#ef4444'
+                           : det.class === 'alligator crack' ? '#f59e0b'
+                           : '#3b82f6';
 
-                       return (
-                         <div key={i} style={{
-                           position: 'absolute',
-                           left: `${left}%`,
-                           top: `${top}%`,
-                           width: `${width}%`,
-                           height: `${height}%`,
-                           border: `2px solid ${isHighConf ? 'var(--color-brand-blue)' : 'var(--color-brand-yellow)'}`,
-                           backgroundColor: isHighConf ? 'rgba(30,58,138,0.1)' : 'rgba(250,204,21,0.1)',
-                           borderRadius: '4px',
-                         }}>
-                           <span className="absolute -top-5 left-0 px-2 py-0.5 text-[8px] font-bold text-white whitespace-nowrap rounded" style={{ 
-                             background: isHighConf ? 'var(--color-brand-blue)' : 'var(--color-brand-yellow)',
-                             color: isHighConf ? '#fff' : 'var(--color-brand-blue)',
-                             fontFamily: 'var(--font-sans)'
+                         return (
+                           <div key={i} style={{
+                             position: 'absolute',
+                             left: `${left}%`,
+                             top: `${top}%`,
+                             width: `${width}%`,
+                             height: `${height}%`,
+                             border: `2px solid ${catColor}`,
+                             backgroundColor: catColor + '18',
+                             borderRadius: '4px',
+                             pointerEvents: 'none',
                            }}>
-                             {det.class} {Math.round(det.confidence*100)}%
-                           </span>
-                         </div>
-                       );
-                    })}
+                             <span className="absolute -top-4 left-0 px-1.5 py-0.5 text-[7px] md:text-[8px] font-bold whitespace-nowrap rounded" style={{ 
+                               background: catColor,
+                               color: '#fff',
+                               fontFamily: 'var(--font-sans)'
+                             }}>
+                               {det.class} {Math.round(det.confidence*100)}%
+                             </span>
+                           </div>
+                         );
+                      })}
                     </div>
                   </div>
                 )}
@@ -403,25 +461,25 @@ export default function HistoryList({ reports, isAdmin, onStatusChange, onDetect
                   <>
                     <button 
                       onClick={() => setCurrentImgIdx(p => p > 0 ? p - 1 : modalImages.length - 1)}
-                      className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center text-white"
+                      className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center text-white"
                       style={{ background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.2)' }}
                     >
-                      <ChevronLeft className="w-5 h-5" />
+                      <ChevronLeft className="w-4 h-4 md:w-5 md:h-5" />
                     </button>
                     <button 
                       onClick={() => setCurrentImgIdx(p => p < modalImages.length - 1 ? p + 1 : 0)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center text-white"
+                      className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center text-white"
                       style={{ background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.2)' }}
                     >
-                      <ChevronRight className="w-5 h-5" />
+                      <ChevronRight className="w-4 h-4 md:w-5 md:h-5" />
                     </button>
-                    <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-1.5">
+                    <div className="absolute bottom-4 md:bottom-6 left-1/2 -translate-x-1/2 flex gap-1.5">
                       {modalImages.map((_, i) => (
                         <div 
                           key={i} 
-                          className="h-[7px] rounded-full cursor-pointer transition-all" 
+                          className="h-[6px] md:h-[7px] rounded-full cursor-pointer transition-all" 
                           style={{ 
-                            width: i === currentImgIdx ? '24px' : '7px',
+                            width: i === currentImgIdx ? '20px' : '6px',
                             background: i === currentImgIdx ? 'var(--color-brand-yellow)' : 'rgba(255,255,255,0.4)' 
                           }}
                           onClick={() => setCurrentImgIdx(i)} 
@@ -431,66 +489,30 @@ export default function HistoryList({ reports, isAdmin, onStatusChange, onDetect
                   </>
                 )}
 
-                {/* AI Comparison Slider */}
-                <div className="absolute top-8 left-8 z-10 flex gap-2">
+                {/* Toggle AI detection overlay */}
+                {selectedReport.detections && selectedReport.detections.length > 0 && (
                   <button 
-                    onClick={() => setComparisonPos(comparisonPos > 0 ? 0 : 100)}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-full text-white text-[10px] font-bold transition-colors uppercase tracking-widest"
-                    style={{ background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.2)' }}
+                    onClick={() => setShowDetections(!showDetections)}
+                    className="absolute top-4 left-4 md:top-6 md:left-6 z-10 flex items-center gap-1.5 md:gap-2 px-2.5 md:px-3 py-1 md:py-1.5 rounded-full text-white text-[9px] md:text-[10px] font-bold transition-colors uppercase tracking-widest"
+                    style={{ background: showDetections ? 'var(--color-brand-blue)' : 'rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.2)' }}
                   >
                     <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--color-brand-yellow)' }} />
-                    {comparisonPos > 0 ? <><EyeOff className="w-4 h-4" /> Hide AI</> : <><Eye className="w-4 h-4" /> Show AI</>}
+                    {showDetections ? 'AI ON' : 'AI OFF'}
                   </button>
-                </div>
-
-                {/* Comparison slider handle */}
-                {selectedReport.detections && selectedReport.detections.length > 0 && (
-                  <div 
-                    ref={sliderRef}
-                    className="absolute inset-0 z-20 cursor-ew-resize"
-                    style={{ margin: '24px' }}
-                    onMouseDown={(e) => {
-                      handleSliderMove(e.clientX);
-                      const onMove = (ev: MouseEvent) => handleSliderMove(ev.clientX);
-                      const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
-                      window.addEventListener('mousemove', onMove);
-                      window.addEventListener('mouseup', onUp);
-                    }}
-                    onTouchStart={(e) => {
-                      handleSliderMove(e.touches[0].clientX);
-                      const onMove = (ev: TouchEvent) => handleSliderMove(ev.touches[0].clientX);
-                      const onUp = () => { window.removeEventListener('touchmove', onMove); window.removeEventListener('touchend', onUp); };
-                      window.addEventListener('touchmove', onMove);
-                      window.addEventListener('touchend', onUp);
-                    }}
-                  >
-                    <div className="comparison-slider-handle" style={{ left: `${comparisonPos}%` }} />
-                  </div>
                 )}
-
-                {/* Mobile close */}
-                <button 
-                  onClick={() => setSelectedReport(null)}
-                  className="absolute top-8 right-8 w-10 h-10 rounded-full flex items-center justify-center text-white md:hidden"
-                  style={{ background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)' }}
-                >
-                  <X className="w-5 h-5" />
-                </button>
               </div>
               
               {/* RIGHT: Editorial Details */}
-              <div className="md:w-[48%] p-10 md:p-12 overflow-y-auto custom-scrollbar flex flex-col gap-6" style={{ background: 'var(--color-surface-cream)' }}>
+              <div className="flex-1 md:w-[48%] p-5 md:p-12 overflow-y-auto custom-scrollbar flex flex-col gap-4 md:gap-6" style={{ background: 'var(--color-surface-cream)' }}>
                 {/* Header */}
                 <div>
                   <span className="eyebrow">Laporan warga</span>
-                  <div className="flex items-baseline gap-3 mt-2">
-                    <h2 className="display-serif" style={{ fontSize: '44px', letterSpacing: '-0.03em', color: 'var(--color-brand-blue)', lineHeight: 1, fontFeatureSettings: '"tnum"' }}>
-                      {selectedReport.kodeUnik || 'Laporan'}
-                    </h2>
-                    <span className="text-xs font-medium" style={{ color: 'var(--color-on-surface-muted)' }}>
-                      {selectedReport.createdAt ? format(new Date(selectedReport.createdAt), 'dd MMM yyyy, HH:mm') : ''}
-                    </span>
-                  </div>
+                  <h2 className="display-serif mt-2" style={{ fontSize: 'clamp(24px, 5vw, 44px)', letterSpacing: '-0.03em', color: 'var(--color-brand-blue)', lineHeight: 1.1, fontFeatureSettings: '"tnum"' }}>
+                    {selectedReport.kodeUnik || 'Laporan'}
+                  </h2>
+                  <span className="text-xs font-medium mt-1 block" style={{ color: 'var(--color-on-surface-muted)' }}>
+                    {selectedReport.createdAt ? format(new Date(selectedReport.createdAt), 'dd MMM yyyy, HH:mm') : ''}
+                  </span>
                 </div>
 
                 {/* Badges */}
@@ -514,13 +536,13 @@ export default function HistoryList({ reports, isAdmin, onStatusChange, onDetect
                 </div>
 
                 {/* Description */}
-                <div className="pt-4" style={{ borderTop: '1px solid var(--color-border)' }}>
+                <div className="pt-3 md:pt-4" style={{ borderTop: '1px solid var(--color-border)' }}>
                   <span className="eyebrow mb-2 block">Deskripsi warga</span>
                   {selectedReport.deskripsi ? (
-                    <p className="display-serif text-lg leading-relaxed" style={{ fontStyle: 'italic' }}>
-                      <span style={{ color: 'var(--color-brand-yellow)', fontSize: '24px' }}>"</span>
+                    <p className="display-serif text-base md:text-lg leading-relaxed" style={{ fontStyle: 'italic' }}>
+                      <span style={{ color: 'var(--color-brand-yellow)', fontSize: '20px' }}>"</span>
                       {selectedReport.deskripsi}
-                      <span style={{ color: 'var(--color-brand-yellow)', fontSize: '24px' }}>"</span>
+                      <span style={{ color: 'var(--color-brand-yellow)', fontSize: '20px' }}>"</span>
                     </p>
                   ) : (
                     <p className="text-sm italic" style={{ color: 'var(--color-on-surface-muted)' }}>Tidak ada deskripsi tambahan.</p>
@@ -528,13 +550,13 @@ export default function HistoryList({ reports, isAdmin, onStatusChange, onDetect
                 </div>
 
                 {/* Location */}
-                <div className="pt-4" style={{ borderTop: '1px solid var(--color-border)' }}>
+                <div className="pt-3 md:pt-4" style={{ borderTop: '1px solid var(--color-border)' }}>
                   <span className="eyebrow mb-2 block">Lokasi</span>
-                  <div className="flex items-start gap-2 p-3.5 rounded-2xl" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
-                    <MapPin className="w-[18px] h-[18px] shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-semibold leading-tight mb-1">{selectedReport.address}</p>
-                      <p className="text-xs" style={{ color: 'var(--color-on-surface-muted)', fontFamily: 'var(--font-mono)' }}>
+                  <div className="flex items-start gap-2 p-3 md:p-3.5 rounded-xl md:rounded-2xl" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
+                    <MapPin className="w-4 h-4 md:w-[18px] md:h-[18px] shrink-0 mt-0.5" />
+                    <div className="min-w-0">
+                      <p className="text-xs md:text-sm font-semibold leading-tight mb-1 break-words">{selectedReport.address}</p>
+                      <p className="text-[10px] md:text-xs" style={{ color: 'var(--color-on-surface-muted)', fontFamily: 'var(--font-mono)' }}>
                         {selectedReport.latitude}, {selectedReport.longitude}
                       </p>
                     </div>
@@ -543,40 +565,45 @@ export default function HistoryList({ reports, isAdmin, onStatusChange, onDetect
                 
                 {/* Detections */}
                 {selectedReport.detections && selectedReport.detections.length > 0 && (
-                  <div className="pt-4" style={{ borderTop: '1px solid var(--color-border)' }}>
+                  <div className="pt-3 md:pt-4" style={{ borderTop: '1px solid var(--color-border)' }}>
                     <span className="eyebrow mb-3 block">Deteksi AI · {selectedReport.detections.length} objek</span>
-                    <div className="grid grid-cols-2 gap-2">
-                      {selectedReport.detections.map((det, i) => (
-                        <div key={i} className="flex items-center justify-between p-3 rounded-xl" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
-                          <div className="flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full" style={{ background: i % 2 === 0 ? 'var(--color-brand-blue)' : 'var(--color-brand-yellow)' }} />
-                            <span className="font-semibold text-xs capitalize">{det.class}</span>
+                    <div className="grid grid-cols-2 gap-1.5 md:gap-2">
+                      {selectedReport.detections.map((det, i) => {
+                        const catColor = det.class === 'pothole' ? '#ef4444'
+                          : det.class === 'alligator crack' ? '#f59e0b'
+                          : '#3b82f6'; // linear crack
+                        return (
+                          <div key={i} className="flex items-center justify-between p-2.5 md:p-3 rounded-lg md:rounded-xl" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
+                            <div className="flex items-center gap-1.5 md:gap-2 min-w-0">
+                              <span className="w-2 h-2 md:w-2.5 md:h-2.5 rounded-full shrink-0" style={{ background: catColor }} />
+                              <span className="font-semibold text-[10px] md:text-xs capitalize truncate">{det.class}</span>
+                            </div>
+                            <span className="text-[10px] md:text-[11px] font-bold px-1.5 md:px-2 py-0.5 rounded-full shrink-0" style={{ color: catColor, background: catColor + '15', fontFamily: 'var(--font-mono)' }}>
+                              {Math.round(det.confidence * 100)}%
+                            </span>
                           </div>
-                          <span className="text-[11px] font-semibold" style={{ color: 'var(--color-brand-blue)', fontFamily: 'var(--font-mono)' }}>
-                            {Math.round(det.confidence * 100)}%
-                          </span>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}
 
                 {/* Status Timeline */}
-                <div className="pt-4" style={{ borderTop: '1px solid var(--color-border)' }}>
-                  <span className="eyebrow mb-4 block">Timeline Status</span>
+                <div className="pt-3 md:pt-4" style={{ borderTop: '1px solid var(--color-border)' }}>
+                  <span className="eyebrow mb-3 md:mb-4 block">Timeline Status</span>
                   <div className="relative pl-6">
                     <div className="absolute left-[7px] top-2 bottom-2 w-0.5" style={{ background: 'var(--color-border)' }} />
                     {[
                       { label: 'Dilaporkan', key: 'pending', desc: selectedReport.createdAt ? format(new Date(selectedReport.createdAt), 'dd MMM yyyy, HH:mm') : 'Baru saja' },
-                      { label: 'Ditinjau Admin', key: 'reviewed', desc: selectedReport.status === 'reviewed' || selectedReport.status === 'resolved' ? 'Sudah ditinjau' : 'Menunggu' },
-                      { label: 'Selesai Diperbaiki', key: 'resolved', desc: selectedReport.status === 'resolved' ? 'Sudah selesai' : 'Belum' },
+                      { label: 'Ditinjau Admin', key: 'reviewed', desc: selectedReport.status === 'reviewed' || selectedReport.status === 'diteruskan' ? 'Sudah ditinjau' : 'Menunggu' },
+                      { label: 'Selesai Diperbaiki', key: 'diteruskan', desc: selectedReport.status === 'diteruskan' ? 'Sudah selesai' : 'Belum' },
                     ].map((step, i) => {
-                      const statusOrder = ['pending', 'reviewed', 'resolved'];
+                      const statusOrder = ['pending', 'reviewed', 'diteruskan'];
                       const current = statusOrder.indexOf(selectedReport.status);
                       const isActive = i <= current;
                       const isCurrent = statusOrder[i] === selectedReport.status;
                       return (
-                        <div key={step.key} className="relative flex items-start gap-3 mb-5 last:mb-0">
+                        <div key={step.key} className="relative flex items-start gap-3 mb-4 md:mb-5 last:mb-0">
                           <div className="absolute -left-6 w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all"
                             style={{
                               borderColor: isActive ? 'var(--color-brand-blue)' : 'var(--color-border)',
@@ -585,8 +612,8 @@ export default function HistoryList({ reports, isAdmin, onStatusChange, onDetect
                             {isActive && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
                           </div>
                           <div>
-                            <p className="text-sm font-bold" style={{ color: isActive ? 'var(--color-on-surface)' : 'var(--color-on-surface-muted)' }}>{step.label}</p>
-                            <p className="text-[11px]" style={{ color: 'var(--color-on-surface-muted)' }}>{step.desc}</p>
+                            <p className="text-xs md:text-sm font-bold" style={{ color: isActive ? 'var(--color-on-surface)' : 'var(--color-on-surface-muted)' }}>{step.label}</p>
+                            <p className="text-[10px] md:text-[11px]" style={{ color: 'var(--color-on-surface-muted)' }}>{step.desc}</p>
                             {isCurrent && <span className="inline-block mt-1 text-[9px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'var(--color-brand-blue-50)', color: 'var(--color-brand-blue)' }}>Status saat ini</span>}
                           </div>
                         </div>
@@ -597,7 +624,7 @@ export default function HistoryList({ reports, isAdmin, onStatusChange, onDetect
 
                 {/* Export PDF (admin) */}
                 {isAdmin && selectedReport.rdsScore > 0 && (
-                  <div className="pt-4" style={{ borderTop: '1px solid var(--color-border)' }}>
+                  <div className="pt-3 md:pt-4" style={{ borderTop: '1px solid var(--color-border)' }}>
                     <button
                       onClick={() => handleExportPDF(selectedReport)}
                       className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-semibold transition-colors"
@@ -610,14 +637,14 @@ export default function HistoryList({ reports, isAdmin, onStatusChange, onDetect
 
                 {/* AI Detect button (admin only, RDS=0) */}
                 {isAdmin && selectedReport.rdsScore === 0 && (
-                  <div className="mt-auto pt-6" style={{ borderTop: '1px solid var(--color-border)' }}>
+                  <div className="mt-auto pt-4 md:pt-6" style={{ borderTop: '1px solid var(--color-border)' }}>
                     <button 
                       onClick={async () => {
                         await handleDetectClick(selectedReport.id);
                         setSelectedReport(null);
                       }}
                       disabled={detectingId === selectedReport.id}
-                      className="btn-primary w-full py-4 text-base"
+                      className="btn-primary w-full py-3 md:py-4 text-sm md:text-base"
                     >
                       {detectingId === selectedReport.id ? (
                         <><Loader2 className="w-5 h-5 animate-spin" /> Menganalisis...</>

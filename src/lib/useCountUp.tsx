@@ -69,11 +69,14 @@ export function AnimatedNumber({
   className?: string;
   style?: React.CSSProperties;
 }) {
-  // If target is a string (like '—'), just render it
+  // Always call hook (rules of hooks: no conditional hook calls)
+  const numericTarget = typeof target === 'number' ? target : 0;
+  const { value, ref } = useCountUp(numericTarget, duration);
+
+  // If target is a string (like '—'), just render it directly
   if (typeof target === 'string') {
     return <span className={className} style={style}>{target}</span>;
   }
 
-  const { value, ref } = useCountUp(target, duration);
   return <span ref={ref as React.RefObject<HTMLSpanElement>} className={className} style={style}>{value}</span>;
 }

@@ -1,120 +1,105 @@
-import React from 'react';
-import { MapContainer, TileLayer, Marker, Popup, GeoJSON } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
+import React, { useEffect, useRef } from 'react';
 import L from 'leaflet';
-import { getStatusColor, getScoreColor } from '../lib/utils';
-import { format } from 'date-fns';
+import 'leaflet/dist/leaflet.css';
 import { Report } from '../types';
 import kemangData from '../kemangPolygon.json';
 
-// Fix for default marker icons in Leaflet
-const iconUrl = 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png';
-const shadowUrl = 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png';
-
-let DefaultIcon = L.icon({
-  iconUrl,
-  shadowUrl,
-  iconSize: [25, 41],
-  iconAnchor: [12, 41]
-});
-
-L.Marker.prototype.options.icon = DefaultIcon;
-
-import { Role } from '../App';
-
 interface MapDisplayProps {
   reports: Report[];
-  role?: Role;
+  onBoundsChange?: (bounds: L.LatLngBounds) => void;
 }
 
-export default function MapDisplay({ reports, role }: MapDisplayProps) {
-  // Center of Kecamatan Kemang, Bogor approximately
-  const defaultPosition: [number, number] = [-6.4952, 106.7423];
+export default function MapDisplay({ reports, onBoundsChange }: MapDisplayProps) {
+  const mapRef = useRef<HTMLDivElement>(null);
+  const mapInstance = useRef<L.Map | null>(null);
+
+  useEffect(() => {
+    if (!mapRef.current || mapInstance.current) return;
+
+    const map = L.map(mapRef.current, {
+      center: [-6.4952, 106.7423],
+      zoom: 13,
+      zoomControl: true,
+      preferCanvas: true,
+    });
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap',
+    }).addTo(map);
+
+    if (kemangData) {
+      L.geoJSON(kemangData as any, {
+        style: {
+          color: '#1e3a8a',
+          weight: 3,
+          fillColor: '#fef08a',
+          fillOpacity: 0.15,
+          dashArray: '8, 4',
+        }
+      }).addTo(map);
+    }
+
+    mapInstance.current = map;
+    setTimeout(() => map.invalidateSize(), 100);
+
+    // Notify parent of bounds changes
+    const handleMove = () => onBoundsChange?.(map.getBounds());
+    map.on('zoomend moveend', handleMove);
+    handleMove();
+
+    return () => {
+      map.remove();
+      mapInstance.current = null;
+    };
+  }, []);
+
+  // Update markers
+  useEffect(() => {
+    const map = mapInstance.current;
+    if (!map) return;
+
+    map.eachLayer(layer => {
+      if ((layer as any).options?.pane === 'markerPane') {
+        map.removeLayer(layer);
+      }
+    });
+
+    reports.forEach(report => {
+      const color = report.rdsScore < 40 ? '#ef4444' : report.rdsScore < 70 ? '#f59e0b' : '#22c55e';
+
+      const icon = L.divIcon({
+        className: 'rds-dot',
+        html: `<div style="
+          width: 28px;
+          height: 18px;
+          background: ${color};
+          border: 2px solid white;
+          border-radius: 10px;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 10px;
+          font-weight: 700;
+          color: white;
+          font-family: monospace;
+        ">${report.rdsScore > 0 ? report.rdsScore : '--'}</div>`,
+        iconSize: [28, 18],
+        iconAnchor: [14, 9],
+      });
+
+      L.marker([report.latitude, report.longitude], { icon })
+        .bindPopup(`
+          <div style="padding:8px;min-width:150px;">
+            <p style="font-weight:600;margin:0 0 4px;">RDS: ${report.rdsScore || '--'}</p>
+            <p style="font-size:12px;color:#666;margin:0;">${report.address || 'Kemang, Bogor'}</p>
+          </div>
+        `)
+        .addTo(map);
+    });
+  }, [reports]);
 
   return (
-    <div className="w-full h-full min-h-[400px] relative">
-      <MapContainer 
-        center={defaultPosition} 
-        zoom={13} 
-        scrollWheelZoom={false}
-        className="z-0 w-full h-full rounded-3xl"
-      >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-        
-        {/* District Boundary Colored */}
-        <GeoJSON 
-          data={kemangData as any} 
-          style={{
-            color: '#1e3a8a', // Blue border
-            weight: 3,
-            fillColor: '#facc15', // Yellow fill
-            fillOpacity: 0.2
-          }} 
-        />
-
-        {reports.map((report) => (
-          <Marker 
-            key={report.id} 
-            position={[report.latitude, report.longitude]}
-          >
-            <Popup className="custom-popup">
-              <div className="p-3 space-y-2.5" style={{ minWidth: '180px' }}>
-                {(() => {
-                  let firstImg = report.imageUrl;
-                  try {
-                    const parsed = JSON.parse(firstImg);
-                    if (Array.isArray(parsed) && parsed.length > 0) firstImg = parsed[0];
-                  } catch (e) {}
-                  return firstImg ? (
-                    <img 
-                      src={firstImg} 
-                      alt="Damage" 
-                      className="w-full h-24 object-cover"
-                      style={{ borderRadius: '12px' }}
-                    />
-                  ) : null;
-                })()}
-                <div>
-                  {role !== 'warga' && (
-                    <p className="text-xs font-semibold" style={{ color: 'var(--color-on-surface)' }}>
-                      RDS: <span className={getScoreColor(report.rdsScore)}>{report.rdsScore}</span>
-                    </p>
-                  )}
-                  <p className="text-[10px] mt-0.5" style={{ color: 'var(--color-on-surface-muted)' }}>
-                    {report.createdAt
-                      ? format(new Date(report.createdAt), 'dd MMM yyyy, HH:mm')
-                      : 'Baru saja'}
-                  </p>
-                </div>
-                <div className={cn(
-                  "text-[10px] uppercase font-bold px-2.5 py-1 rounded-full inline-block",
-                  getStatusColor(report.status)
-                )}>
-                  {report.status}
-                </div>
-                
-                <a 
-                  href={`https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${report.latitude},${report.longitude}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full mt-1 py-2 text-[10px] font-bold text-center block rounded-xl transition-colors"
-                  style={{ background: 'var(--color-brand-blue)', color: '#fff' }}
-                >
-                  Buka Street View
-                </a>
-              </div>
-            </Popup>
-          </Marker>
-        ))}
-      </MapContainer>
-    </div>
+    <div ref={mapRef} style={{ width: '100%', height: '100%' }} />
   );
-}
-
-// Minimal cn helper for this file if needed
-function cn(...inputs: any[]) {
-  return inputs.filter(Boolean).join(' ');
 }

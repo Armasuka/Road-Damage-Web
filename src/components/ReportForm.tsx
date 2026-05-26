@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Upload, X, Loader2, CheckCircle2, ShieldAlert, Mail, MapPin, ArrowRight, BrainCircuit } from './icons';
+import PhotoGuidePanel from './PhotoGuidePanel';
 import { motion, AnimatePresence } from 'motion/react';
 import { calculateRDS, cn, compressImage } from '../lib/utils';
 import { Detection } from '../types';
@@ -8,6 +9,7 @@ import { Detection } from '../types';
 interface ReportFormProps {
   onSuccess?: () => void;
   onNavigateMap?: () => void;
+  onNavigateHistory?: () => void;
 }
 
 /* ── Step indicator ────── */
@@ -39,7 +41,7 @@ function StepIndicator({ step }: { step: number }) {
   );
 }
 
-export default function ReportForm({ onSuccess, onNavigateMap }: ReportFormProps) {
+export default function ReportForm({ onSuccess, onNavigateMap, onNavigateHistory }: ReportFormProps) {
   const [files, setFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [email, setEmail] = useState('');
@@ -130,7 +132,7 @@ export default function ReportForm({ onSuccess, onNavigateMap }: ReportFormProps
   };
 
   return (
-    <div className="max-w-[1080px] mx-auto py-8 px-4">
+    <div className="max-w-[1080px] mx-auto py-4 md:py-8 px-0">
       <motion.div 
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
@@ -147,9 +149,12 @@ export default function ReportForm({ onSuccess, onNavigateMap }: ReportFormProps
         {/* Step indicator */}
         {status !== 'success' && <StepIndicator step={currentStep} />}
 
+        {/* Photo guide */}
+        <PhotoGuidePanel />
+
         <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Left column */}
-          <div className="card p-7 space-y-5">
+          <div className="card p-5 md:p-7 space-y-5">
             {/* Dropzone */}
             <div>
               <div className="flex justify-between items-center mb-2">
@@ -187,7 +192,7 @@ export default function ReportForm({ onSuccess, onNavigateMap }: ReportFormProps
                             setFiles(prev => prev.filter((_, idx) => idx !== i));
                             setPreviews(prev => prev.filter((_, idx) => idx !== i));
                           }}
-                          className="absolute top-2 right-2 p-1.5 rounded-full text-white transition-opacity z-10 opacity-0 group-hover/img:opacity-100"
+                          className="absolute top-2 right-2 p-1.5 rounded-full text-white transition-opacity z-10 opacity-100 md:opacity-0 md:group-hover/img:opacity-100"
                           style={{ background: 'rgba(15,23,42,0.6)' }}
                         >
                           <X className="w-3 h-3" />
@@ -287,7 +292,7 @@ export default function ReportForm({ onSuccess, onNavigateMap }: ReportFormProps
                         <CheckCircle2 className="w-6 h-6" />
                       </div>
                       <span className="eyebrow block mb-2" style={{ color: 'var(--color-brand-yellow-700)' }}>Laporan Terkirim</span>
-                      <p className="display-serif mt-1" style={{ fontSize: '44px', letterSpacing: '-0.03em', color: 'var(--color-brand-blue)', lineHeight: 1 }}>{kodeUnik}</p>
+                      <p className="display-serif mt-1" style={{ fontSize: 'clamp(28px, 6vw, 44px)', letterSpacing: '-0.03em', color: 'var(--color-brand-blue)', lineHeight: 1 }}>{kodeUnik}</p>
                       <p className="text-sm mt-3" style={{ color: 'var(--color-on-surface-muted)' }}>Simpan kode ini untuk memantau status.</p>
                     </div>
                     <div className="p-6 space-y-4">
@@ -301,6 +306,13 @@ export default function ReportForm({ onSuccess, onNavigateMap }: ReportFormProps
                           <p className="text-sm font-semibold mt-1">Menunggu AI</p>
                         </div>
                       </div>
+                      {/* Explanation of what happens next */}
+                      <div className="p-4 rounded-2xl text-sm" style={{ background: 'var(--color-brand-blue-50)', border: '1px solid var(--color-brand-blue-100)' }}>
+                        <p className="font-semibold mb-1" style={{ color: 'var(--color-brand-blue)' }}>Proses selanjutnya:</p>
+                        <p className="text-xs leading-relaxed" style={{ color: 'var(--color-on-surface-muted)' }}>
+                          Model AI YOLOv11 akan menganalisis foto Anda, mendeteksi jenis kerusakan, dan menghitung nilai RDS. Pantau status laporan di halaman <em>Pantau Laporan</em>.
+                        </p>
+                      </div>
                       <div className="flex gap-3">
                         <button 
                           type="button"
@@ -309,9 +321,9 @@ export default function ReportForm({ onSuccess, onNavigateMap }: ReportFormProps
                         >
                           Lapor Lagi
                         </button>
-                        {onNavigateMap && (
-                          <button type="button" onClick={onNavigateMap} className="btn-primary flex-1 group">
-                            Lihat Peta
+                        {onNavigateHistory && (
+                          <button type="button" onClick={onNavigateHistory} className="btn-primary flex-1 group">
+                            Pantau Laporan
                             <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-0.5" />
                           </button>
                         )}
@@ -335,16 +347,16 @@ export default function ReportForm({ onSuccess, onNavigateMap }: ReportFormProps
               ) : (
                 <>
                   {/* Ticket preview */}
-                  <div className="card p-7">
+                  <div className="card p-5 md:p-7">
                     <div className="p-5 rounded-2xl" style={{ background: 'var(--color-brand-yellow-50)', border: '1px solid var(--color-brand-yellow-100)' }}>
                       <span className="eyebrow" style={{ color: 'var(--color-brand-yellow-700)' }}>Kode tiket akan muncul di sini</span>
-                      <p className="display-serif mt-2" style={{ fontSize: '44px', letterSpacing: '-0.03em', color: 'var(--color-brand-blue)', lineHeight: 1, opacity: 0.15 }}>LAP-————</p>
+                      <p className="display-serif mt-2" style={{ fontSize: 'clamp(28px, 6vw, 44px)', letterSpacing: '-0.03em', color: 'var(--color-brand-blue)', lineHeight: 1, opacity: 0.15 }}>LAP-————</p>
                       <p className="text-sm mt-2" style={{ color: 'var(--color-on-surface-muted)' }}>Simpan kode ini untuk memantau status.</p>
                     </div>
                   </div>
 
                   {/* What happens next */}
-                  <div className="card p-7">
+                  <div className="card p-5 md:p-7">
                     <p className="display-serif text-base mb-4" style={{ fontStyle: 'italic' }}>Apa yang terjadi setelah kirim?</p>
                     <div className="space-y-3">
                       {[

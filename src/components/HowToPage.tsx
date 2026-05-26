@@ -1,4 +1,5 @@
 import React from 'react';
+const ease = [0.22, 1, 0.36, 1] as const;
 import { ChevronLeft, ArrowRight, Upload, MapPin, BrainCircuit, CheckCircle, Camera, Crosshair, FileText, BarChart3 } from './icons';
 import { motion } from 'motion/react';
 
@@ -11,7 +12,7 @@ const fadeUp = {
   hidden: { opacity: 0, y: 30 },
   visible: (i: number) => ({
     opacity: 1, y: 0,
-    transition: { delay: i * 0.08, duration: 0.5, ease: [0.22, 1, 0.36, 1] }
+    transition: { delay: i * 0.08, duration: 0.5, ease }
   })
 };
 

@@ -9,11 +9,13 @@ interface LandingPageProps {
   onNavigate: (page: LandingView) => void;
 }
 
+const ease: [number, number, number, number] = [0.22, 1, 0.36, 1];
+
 const fadeUp = {
   hidden: { opacity: 0, y: 40 },
   visible: (i: number) => ({
     opacity: 1, y: 0,
-    transition: { delay: i * 0.1, duration: 0.6, ease: [0.22, 1, 0.36, 1] }
+    transition: { delay: i * 0.1, duration: 0.6, ease }
   })
 };
 
@@ -21,7 +23,7 @@ const scaleIn = {
   hidden: { opacity: 0, scale: 0.92 },
   visible: (i: number) => ({
     opacity: 1, scale: 1,
-    transition: { delay: i * 0.08, duration: 0.5, ease: [0.22, 1, 0.36, 1] }
+    transition: { delay: i * 0.08, duration: 0.5, ease }
   })
 };
 
@@ -105,21 +107,21 @@ export default function LandingPage({ onEnter, onNavigate }: LandingPageProps) {
           borderBottom: `1px solid ${scrolled ? 'var(--color-border)' : 'transparent'}`,
         }}
       >
-        <div className="max-w-[1200px] mx-auto px-8 h-20 flex items-center justify-between">
+        <div className="max-w-[1200px] mx-auto px-4 md:px-8 h-16 md:h-20 flex items-center justify-between">
           <AnimatedHeaderLogo scrolled={scrolled} />
           <div className="hidden md:flex items-center gap-8">
             <button onClick={() => scrollTo(sectionHow)} className="text-sm font-medium transition-colors hover:text-[var(--color-brand-blue)]" style={{ color: 'var(--color-on-surface-muted)', background: 'none', border: 'none', cursor: 'pointer' }}>Cara Lapor</button>
             <button onClick={() => scrollTo(sectionAI)} className="text-sm font-medium transition-colors hover:text-[var(--color-brand-blue)]" style={{ color: 'var(--color-on-surface-muted)', background: 'none', border: 'none', cursor: 'pointer' }}>Tentang AI</button>
             <button onClick={() => scrollTo(sectionMap)} className="text-sm font-medium transition-colors hover:text-[var(--color-brand-blue)]" style={{ color: 'var(--color-on-surface-muted)', background: 'none', border: 'none', cursor: 'pointer' }}>Peta</button>
           </div>
-          <button onClick={() => onEnter('warga')} className="btn-primary">
-            Masuk Aplikasi <ArrowRight size={16} />
+          <button onClick={() => onEnter('warga')} className="btn-primary text-sm md:text-base px-4 md:px-6 py-2.5 md:py-3">
+            Masuk <span className="hidden sm:inline">Aplikasi</span> <ArrowRight size={16} />
           </button>
         </div>
       </header>
 
       {/* ── Editorial Hero ─────────────────────── */}
-      <section className="pt-36 pb-8 px-8">
+      <section className="pt-24 md:pt-36 pb-8 px-4 md:px-8">
         <div className="max-w-[1200px] mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           {/* Left: text */}
           <div>
@@ -171,7 +173,7 @@ export default function LandingPage({ onEnter, onNavigate }: LandingPageProps) {
             <motion.div
               initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.8 }}
-              className="absolute -bottom-5 -left-5 p-4 rounded-2xl" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', boxShadow: '0 8px 30px rgba(15,23,42,0.08)' }}
+              className="absolute -bottom-5 -left-5 p-4 rounded-2xl hidden sm:block" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', boxShadow: '0 8px 30px rgba(15,23,42,0.08)' }}
             >
               <span className="eyebrow block mb-1">Laporan Masuk</span>
               <AnimatedNumber value={stats.total > 0 ? stats.total : '—'} className="display-serif text-3xl" style={{ color: 'var(--color-brand-blue)' }} />
@@ -180,7 +182,7 @@ export default function LandingPage({ onEnter, onNavigate }: LandingPageProps) {
             <motion.div
               initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 1.0 }}
-              className="absolute -top-4 -right-4 p-4 rounded-2xl" style={{ background: 'var(--color-brand-blue)', boxShadow: '0 8px 30px rgba(30,58,138,0.25)' }}
+              className="absolute -top-4 -right-4 p-4 rounded-2xl hidden sm:block" style={{ background: 'var(--color-brand-blue)', boxShadow: '0 8px 30px rgba(30,58,138,0.25)' }}
             >
               <span className="eyebrow block mb-1" style={{ color: 'var(--color-brand-yellow)' }}>Avg RDS</span>
               <AnimatedNumber value={stats.avgRds > 0 ? stats.avgRds : '—'} className="display-serif text-3xl text-white" />
@@ -190,7 +192,7 @@ export default function LandingPage({ onEnter, onNavigate }: LandingPageProps) {
       </section>
 
       {/* ── Bento Grid ─────────────────────────── */}
-      <section className="max-w-[1200px] mx-auto px-8 py-16 space-y-4">
+      <section className="max-w-[1200px] mx-auto px-4 md:px-8 py-10 md:py-16 space-y-4">
 
         {/* Row 1: AI detection + Cara Lapor steps */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -202,15 +204,15 @@ export default function LandingPage({ onEnter, onNavigate }: LandingPageProps) {
             className="tile p-0 overflow-hidden scroll-mt-24 cursor-pointer group"
             onClick={() => onNavigate('ai-info')}
           >
-            <div className="p-7 pb-4">
+            <div className="p-5 md:p-7 pb-4">
               <span className="eyebrow" style={{ color: 'var(--color-brand-blue)' }}>Deteksi Otomatis</span>
-              <h3 className="display-serif text-3xl mt-3 mb-2">AI membaca foto Anda.</h3>
+              <h3 className="display-serif text-2xl md:text-3xl mt-3 mb-2">AI membaca foto Anda.</h3>
               <p className="text-sm leading-relaxed" style={{ color: 'var(--color-on-surface-muted)' }}>
                 Computer vision YOLOv11 mengenali pothole, retak memanjang, dan retak buaya — langsung dari satu foto.
               </p>
               <span className="inline-flex items-center gap-1 mt-3 text-xs font-semibold transition-all group-hover:gap-2" style={{ color: 'var(--color-brand-blue)' }}>Pelajari teknologi AI <ArrowRight size={12} /></span>
             </div>
-            <div className="px-7 pb-7">
+            <div className="px-5 md:px-7 pb-5 md:pb-7">
               <div className="rounded-2xl overflow-hidden transition-transform duration-500 group-hover:scale-[1.02]" style={{ border: '1px solid var(--color-border)' }}>
                 <img src="/images/ai-detect.png" alt="AI Detection" className="w-full h-48 object-cover" />
               </div>
@@ -251,7 +253,7 @@ export default function LandingPage({ onEnter, onNavigate }: LandingPageProps) {
         </div>
 
         {/* Row 2: Stat tiles */}
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
           {[
             { label: 'Laporan Masuk', value: stats.total > 0 ? stats.total.toLocaleString('id-ID') : '—' },
             { label: 'Rata-rata RDS', value: stats.avgRds > 0 ? stats.avgRds : '—' },
@@ -263,7 +265,7 @@ export default function LandingPage({ onEnter, onNavigate }: LandingPageProps) {
               variants={scaleIn} custom={i}
               className="tile text-center py-6"
             >
-              <AnimatedNumber value={s.value} className="display-serif block" style={{ fontSize: '44px', fontWeight: 300, color: 'var(--color-brand-blue)', lineHeight: 1 }} />
+              <AnimatedNumber value={s.value} className="display-serif block" style={{ fontSize: 'clamp(32px, 7vw, 44px)', fontWeight: 300, color: 'var(--color-brand-blue)', lineHeight: 1 }} />
               <span className="eyebrow mt-2 block">{s.label}</span>
             </motion.div>
           ))}
@@ -277,7 +279,7 @@ export default function LandingPage({ onEnter, onNavigate }: LandingPageProps) {
             initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-60px' }}
             variants={scaleIn} custom={0}
             className="md:col-span-5 tile p-0 overflow-hidden cursor-pointer scroll-mt-24 relative group"
-            style={{ minHeight: '320px' }}
+            style={{ minHeight: '260px' }}
             onClick={() => onNavigate('public-map')}
           >
             <img src="/images/map-aerial.png" alt="Peta Kemang" className="w-full h-full object-cover absolute inset-0 transition-transform duration-500 group-hover:scale-105" />
@@ -392,7 +394,7 @@ export default function LandingPage({ onEnter, onNavigate }: LandingPageProps) {
               <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex-1 p-5 rounded-2xl" style={{ background: 'var(--color-surface-cream)', border: '1px solid var(--color-border)' }}>
                 <div className="flex items-baseline gap-3 mb-3">
                   <span className="display-serif text-2xl" style={{ color: 'var(--color-brand-blue)', fontFeatureSettings: '"tnum"' }}>{trackResult.kodeUnik}</span>
-                  <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase ${trackResult.status === 'resolved' ? 'badge-status-resolved' : trackResult.status === 'reviewed' ? 'badge-status-reviewed' : 'badge-status-pending'}`}>
+                  <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase ${trackResult.status === 'diteruskan' ? 'badge-status-diteruskan' : trackResult.status === 'reviewed' ? 'badge-status-reviewed' : 'badge-status-pending'}`}>
                     {trackResult.status === 'pending' ? 'Menunggu' : trackResult.status === 'reviewed' ? 'Ditinjau' : 'Selesai'}
                   </span>
                 </div>
@@ -416,7 +418,7 @@ export default function LandingPage({ onEnter, onNavigate }: LandingPageProps) {
 
       {/* ── Footer ────────────────────────────── */}
       <footer style={{ borderTop: '1px solid var(--color-border)' }}>
-        <div className="max-w-[1200px] mx-auto px-8 py-12 flex flex-col md:flex-row items-start md:items-end justify-between gap-6">
+        <div className="max-w-[1200px] mx-auto px-4 md:px-8 py-8 md:py-12 flex flex-col md:flex-row items-start md:items-end justify-between gap-6">
           <JalurLogo size={28} showTagline />
           <span className="text-xs" style={{ color: 'var(--color-on-surface-muted)' }}>
             © 2026 JALUR · Proyek percontohan Kecamatan Kemang, Bogor
