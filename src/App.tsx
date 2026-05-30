@@ -13,6 +13,7 @@ import { BarChart3, Menu } from './components/icons';
 import AnalyticsView from './components/AnalyticsView';
 import PriorityView from './components/PriorityView';
 import { motion, AnimatePresence } from 'motion/react';
+import { Report } from './types';
 
 export type Role = 'warga' | 'admin' | null;
 export type LandingView = 'public-map' | 'ai-info' | 'how-to' | 'rds-info' | null;
@@ -36,7 +37,7 @@ function getPersistedView(): View {
 
 export default function App() {
   const [currentView, setCurrentView] = useState<View>(getPersistedView);
-  const [reports, setReports] = useState<any[]>([]);
+  const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
   const [role, setRole] = useState<Role>(getPersistedRole);
   const [showAdminLogin, setShowAdminLogin] = useState(false);

@@ -4,9 +4,10 @@ import { motion } from 'motion/react';
 import { MapPin, AlertTriangle, CheckCircle, BrainCircuit, ArrowRight, TrendingDown, ShieldAlert } from './icons';
 import { AnimatedNumber } from '../lib/useCountUp';
 import { format } from 'date-fns';
+import { Report } from '../types';
 
 interface PriorityViewProps {
-  reports: any[];
+  reports: Report[];
   onStatusChange: (id: number, status: string) => void;
   onNavigateHistory?: () => void;
 }
@@ -233,7 +234,7 @@ export default function PriorityView({ reports, onStatusChange, onNavigateHistor
                         {/* Jenis kerusakan */}
                         {Array.isArray(report.detections) && report.detections.length > 0 && (
                           <div className="flex gap-1 flex-wrap">
-                            {[...new Set(report.detections.map((d: any) => d.class))].map((cls: any) => (
+                            {[...new Set(report.detections.map((d) => d.class))].map((cls) => (
                               <span
                                 key={cls}
                                 className="text-[9px] px-1.5 py-0.5 rounded-full font-semibold capitalize"

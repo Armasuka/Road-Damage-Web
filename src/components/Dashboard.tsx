@@ -7,9 +7,10 @@ import { AnimatedNumber } from '../lib/useCountUp';
 import { format } from 'date-fns';
 import L from 'leaflet';
 import { Role } from '../App';
+import { Report } from '../types';
 
 interface DashboardProps {
-  reports: any[];
+  reports: Report[];
   role?: Role;
   onNavigate?: (view: string) => void;
 }

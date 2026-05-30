@@ -4,9 +4,10 @@ import { motion } from 'motion/react';
 import { ShieldAlert, AlertTriangle, CheckCircle, TrendingDown } from './icons';
 import EmptyState from './EmptyState';
 import { AnimatedNumber } from '../lib/useCountUp';
+import { Report } from '../types';
 
 interface AnalyticsViewProps {
-  reports: any[];
+  reports: Report[];
 }
 
 export default function AnalyticsView({ reports }: AnalyticsViewProps) {
@@ -31,7 +32,7 @@ export default function AnalyticsView({ reports }: AnalyticsViewProps) {
     const map: Record<string, number> = {};
     reports.forEach(r => {
       if (r.detections && Array.isArray(r.detections)) {
-        r.detections.forEach((d: any) => {
+        r.detections.forEach((d) => {
           const cls = d.class || 'unknown';
           map[cls] = (map[cls] || 0) + 1;
         });

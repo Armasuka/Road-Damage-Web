@@ -24,5 +24,11 @@ export default defineConfig(({mode}) => {
         ignored: ['**/.refact/**', '**/.qodo/**', '**/.gemini/**', '**/.git/**', '**/node_modules/**', '**/dist/**'],
       },
     },
+    test: {
+      globals: true,
+      environment: 'jsdom',
+      include: ['src/**/*.{test,spec}.{ts,tsx}', 'server.test.ts'],
+      setupFiles: [],
+    },
   };
 });

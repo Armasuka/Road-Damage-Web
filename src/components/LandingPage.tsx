@@ -3,6 +3,7 @@ import { JalurLogo, JalurMark, ArrowRight, ShieldCheck, MapPin, BrainCircuit, Se
 import { motion, useScroll, useTransform, useMotionValueEvent } from 'motion/react';
 import { LandingView } from '../App';
 import { AnimatedNumber } from '../lib/useCountUp';
+import { Report, Stats } from '../types';
 
 interface LandingPageProps {
   onEnter: (role: 'warga' | 'admin') => void;
@@ -58,7 +59,7 @@ function AnimatedHeaderLogo({ scrolled }: { scrolled: boolean }) {
 }
 
 export default function LandingPage({ onEnter, onNavigate }: LandingPageProps) {
-  const [stats, setStats] = useState({ total: 0, avgRds: 0 });
+  const [stats, setStats] = useState<Stats>({ total: 0, avgRds: 0 });
   const [scrolled, setScrolled] = useState(false);
   const [trackCode, setTrackCode] = useState('');
   const [trackResult, setTrackResult] = useState<any>(null);
@@ -88,9 +89,9 @@ export default function LandingPage({ onEnter, onNavigate }: LandingPageProps) {
   useEffect(() => {
     fetch('/api/reports')
       .then(r => r.json())
-      .then((reports: any[]) => {
-        const a = reports.filter((r: any) => r.rdsScore > 0);
-        const avg = a.length > 0 ? Math.round(a.reduce((s: number, r: any) => s + r.rdsScore, 0) / a.length) : 0;
+      .then((reports: Report[]) => {
+        const a = reports.filter((r) => r.rdsScore > 0);
+        const avg = a.length > 0 ? Math.round(a.reduce((s: number, r) => s + r.rdsScore, 0) / a.length) : 0;
         setStats({ total: reports.length, avgRds: avg });
       }).catch(() => {});
   }, []);
