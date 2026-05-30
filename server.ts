@@ -56,7 +56,10 @@ function getStatusLabel(status: string): string {
   switch (status) {
     case 'pending': return 'Menunggu';
     case 'reviewed': return 'Sedang Ditinjau';
-    case 'diteruskan': return 'Selesai';
+    case 'dilaporkan': return 'Dilaporkan ke PU';
+    case 'dalam_perbaikan': return 'Dalam Perbaikan';
+    case 'perbaikan_selesai': return 'Perbaikan Selesai';
+    case 'ditolak': return 'Ditolak';
     default: return status;
   }
 }
@@ -65,7 +68,10 @@ function getStatusColor(status: string): string {
   switch (status) {
     case 'pending': return '#f59e0b';
     case 'reviewed': return '#3b82f6';
-    case 'diteruskan': return '#22c55e';
+    case 'dilaporkan': return '#f59e0b';
+    case 'dalam_perbaikan': return '#8b5cf6';
+    case 'perbaikan_selesai': return '#22c55e';
+    case 'ditolak': return '#ef4444';
     default: return '#6b7280';
   }
 }

@@ -129,8 +129,23 @@ export default function HistoryList({ reports, isAdmin, onStatusChange, onDetect
     switch (status) {
       case 'pending': return 'badge-status-pending';
       case 'reviewed': return 'badge-status-reviewed';
-      case 'diteruskan': return 'badge-status-diteruskan';
+      case 'dilaporkan': return 'badge-status-dilaporkan';
+      case 'dalam_perbaikan': return 'badge-status-dalam-perbaikan';
+      case 'perbaikan_selesai': return 'badge-status-selesai';
+      case 'ditolak': return 'badge-status-ditolak';
       default: return 'badge-status-pending';
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'pending': return 'Menunggu';
+      case 'reviewed': return 'Ditinjau';
+      case 'dilaporkan': return 'Dilaporkan PU';
+      case 'dalam_perbaikan': return 'Perbaikan';
+      case 'perbaikan_selesai': return 'Selesai';
+      case 'ditolak': return 'Ditolak';
+      default: return status;
     }
   };
 
@@ -234,7 +249,7 @@ export default function HistoryList({ reports, isAdmin, onStatusChange, onDetect
                 </p>
                 <div className="flex items-center justify-between mt-2">
                   <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${getStatusBadgeClass(report.status)}`}>
-                    {report.status}
+                    {getStatusLabel(report.status)}
                   </span>
                   <span className="text-[10px]" style={{ color: 'var(--color-on-surface-muted)' }}>
                     {report.createdAt ? format(new Date(report.createdAt), 'dd MMM, HH:mm') : '-'}
@@ -333,15 +348,18 @@ export default function HistoryList({ reports, isAdmin, onStatusChange, onDetect
                 </td>
                 <td className="px-6 py-4">
                   {isAdmin ? (
-                    <select 
+                    <select
                       value={report.status}
                       onClick={(e) => e.stopPropagation()}
                       onChange={(e) => onStatusChange(report.id, e.target.value)}
                       className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase cursor-pointer outline-none ${getStatusBadgeClass(report.status)}`}
                     >
-                      <option value="pending">Pending</option>
-                      <option value="reviewed">Reviewed</option>
-                      <option value="diteruskan">Resolved</option>
+                      <option value="pending">Menunggu</option>
+                      <option value="reviewed">Ditinjau</option>
+                      <option value="dilaporkan">Dilaporkan PU</option>
+                      <option value="dalam_perbaikan">Perbaikan</option>
+                      <option value="perbaikan_selesai">Selesai</option>
+                      <option value="ditolak">Ditolak</option>
                     </select>
                   ) : (
                     <span className={getStatusBadgeClass(report.status)}>

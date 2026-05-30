@@ -101,19 +101,30 @@ export default function App() {
   }, [role]);
 
   const handleStatusChange = async (id: number, newStatus: string) => {
+    // Optimistic update - update immediately without waiting for server
+    setReports(prev => prev.map(r => r.id === id ? { ...r, status: newStatus as Report['status'] } : r));
+
     try {
-      await fetch(`/api/reports/${id}/status`, {
+      const res = await fetch(`/api/reports/${id}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),
       });
-      fetchReports();
+      if (!res.ok) {
+        // Revert on failure
+        fetchReports();
+        console.error('Status update failed');
+      }
     } catch (error) {
+      // Revert on error
+      fetchReports();
       console.error(error);
     }
   };
 
   const handleDetect = async (id: number) => {
+    // Optimistic: show detecting state
+    setReports(prev => prev.map(r => r.id === id ? { ...r } : r));
     try {
       const response = await fetch(`/api/reports/${id}/detect`, {
         method: 'POST',

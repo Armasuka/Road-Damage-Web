@@ -15,7 +15,17 @@ export interface Detection {
 }
 
 // Report status values
-export type ReportStatus = 'pending' | 'reviewed' | 'diteruskan';
+export type ReportStatus = 'pending' | 'reviewed' | 'dilaporkan' | 'dalam_perbaikan' | 'perbaikan_selesai' | 'ditolak';
+
+// Status label in Bahasa Indonesia
+export const statusLabels: Record<ReportStatus, string> = {
+  pending: 'Menunggu',
+  reviewed: 'Sedang Ditinjau',
+  dilaporkan: 'Dilaporkan ke PU',
+  dalam_perbaikan: 'Dalam Perbaikan',
+  perbaikan_selesai: 'Selesai',
+  ditolak: 'Ditolak',
+};
 
 // Main report interface matching database schema and API responses
 export interface Report {
